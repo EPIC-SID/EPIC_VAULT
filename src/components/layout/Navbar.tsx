@@ -13,10 +13,12 @@ import {
   Dumbbell, 
   Headphones, 
   Gamepad2,
-  PackageCheck
+  PackageCheck,
+  Heart
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useCart } from '@/context/CartContext'
+import { useWishlist } from '@/context/WishlistContext'
 
 interface NavbarProps {
   onOpenCart: () => void
@@ -25,6 +27,7 @@ interface NavbarProps {
 export function Navbar({ onOpenCart }: NavbarProps) {
   const { user, profile, isAdmin, signOut } = useAuth()
   const { cartCount } = useCart()
+  const { wishlistCount } = useWishlist()
   const [mobileOpen, setMobileOpen] = useState(false)
   const navigate = useNavigate()
   const { pathname, search } = useLocation()
@@ -117,6 +120,25 @@ export function Navbar({ onOpenCart }: NavbarProps) {
           >
             <Gamepad2 className="w-3.5 h-3.5" /> Gaming
           </Link>
+
+          {user && (
+            <Link
+              to="/wishlist"
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                pathname === '/wishlist'
+                  ? 'bg-rose-50 text-rose-600'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Heart className={`w-3.5 h-3.5 ${pathname === '/wishlist' ? 'fill-rose-500 text-rose-500' : ''}`} />
+              Wishlist
+              {wishlistCount > 0 && (
+                <span className="px-1.5 py-0.5 text-[10px] font-extrabold bg-rose-500 text-white rounded-full">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
+          )}
 
           {user && (
             <Link
@@ -265,6 +287,22 @@ export function Navbar({ onOpenCart }: NavbarProps) {
           >
             <Gamepad2 className="w-4 h-4 text-slate-500" /> Gaming
           </Link>
+
+          {user && (
+            <Link
+              to="/wishlist"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-rose-50"
+            >
+              <Heart className={`w-4 h-4 ${wishlistCount > 0 ? 'fill-rose-500 text-rose-500' : 'text-slate-500'}`} />
+              Wishlist
+              {wishlistCount > 0 && (
+                <span className="ml-auto px-1.5 py-0.5 text-[10px] font-extrabold bg-rose-500 text-white rounded-full">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
+          )}
 
           {user && (
             <Link

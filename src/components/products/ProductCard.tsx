@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { ShoppingBag, Eye, AlertTriangle, CheckCircle, Flame } from 'lucide-react'
+import { ShoppingBag, Eye, AlertTriangle, CheckCircle, Flame, Heart } from 'lucide-react'
 import { useCart } from '@/context/CartContext'
+import { useWishlist } from '@/context/WishlistContext'
 import type { Product } from '@/types'
 
 interface ProductCardProps {
@@ -13,7 +14,9 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0
 
 export function ProductCard({ product, onSelectProduct }: ProductCardProps) {
   const { addToCart } = useCart()
+  const { isWishlisted, toggleWishlist } = useWishlist()
   const [imageLoaded, setImageLoaded] = useState(false)
+  const wishlisted = isWishlisted(product.id)
 
   const isOutOfStock = product.stock <= 0
   const isLowStock   = product.stock > 0 && product.stock <= 3
@@ -56,8 +59,24 @@ export function ProductCard({ product, onSelectProduct }: ProductCardProps) {
           {product.category}
         </span>
 
+        {/* Wishlist Heart Button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleWishlist(product)
+          }}
+          title={wishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
+          className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all z-10 ${
+            wishlisted
+              ? 'bg-rose-500 text-white hover:bg-rose-600'
+              : 'bg-white/90 backdrop-blur-sm text-slate-500 hover:bg-rose-50 hover:text-rose-500'
+          }`}
+        >
+          <Heart className={`w-3.5 h-3.5 ${wishlisted ? 'fill-white' : ''}`} />
+        </button>
+
         {/* Stock Badge */}
-        <div className="absolute top-2.5 right-2.5">
+        <div className="absolute bottom-2.5 right-2.5">
           {isOutOfStock ? (
             <span className="chip chip-red shadow-xs">
               <AlertTriangle className="w-3 h-3" />

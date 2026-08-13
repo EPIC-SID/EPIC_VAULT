@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ToastProvider } from '@/context/ToastContext'
 import { AuthProvider } from '@/context/AuthContext'
 import { CartProvider } from '@/context/CartContext'
+import { WishlistProvider } from '@/context/WishlistContext'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { NetworkBanner } from '@/components/layout/NetworkBanner'
@@ -14,6 +15,9 @@ import { ProfilePage } from '@/pages/ProfilePage'
 // Lazy-loaded pages (code-split for performance)
 const ProductsPage = React.lazy(() =>
   import('@/pages/ProductsPage').then((m) => ({ default: m.ProductsPage }))
+)
+const WishlistPage = React.lazy(() =>
+  import('@/pages/WishlistPage').then((m) => ({ default: m.WishlistPage }))
 )
 const AdminPage = React.lazy(() =>
   import('@/pages/AdminPage').then((m) => ({ default: m.AdminPage }))
@@ -53,6 +57,10 @@ function AppShell() {
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/login"   element={<LoginPage />} />
             <Route path="/signup"  element={<SignupPage />} />
+            <Route
+              path="/wishlist"
+              element={<WishlistPage />}
+            />
             <Route
               path="/profile"
               element={
@@ -98,7 +106,9 @@ export default function App() {
       <ToastProvider>
         <AuthProvider>
           <CartProvider>
-            <AppShell />
+            <WishlistProvider>
+              <AppShell />
+            </WishlistProvider>
           </CartProvider>
         </AuthProvider>
       </ToastProvider>
