@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Product, Order, OrderStatus } from '@/types'
+import type { Product, Order, OrderStatus, Profile } from '@/types'
 import { useToast } from '@/context/ToastContext'
 import { 
   ShieldCheck, 
@@ -11,31 +11,42 @@ import {
   X, 
   Package, 
   ShoppingBag, 
-  RefreshCw 
+  RefreshCw,
+  Users,
+  Wand2,
+  UserCheck,
+  Mail,
+  ShieldAlert,
 } from 'lucide-react'
 
 export function AdminPage() {
   const { showSuccess, showError } = useToast()
 
-  const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products')
-  const [products, setProducts] = useState<Product[]>([])
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'users'>('products')
+  const [products, setProducts]   = useState<Product[]>([])
+  const [orders, setOrders]       = useState<Order[]>([])
+  const [profiles, setProfiles]   = useState<Profile[]>([])
+  const [loading, setLoading]     = useState(true)
 
+  // Product Modal State
   const [showProductModal, setShowProductModal] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [editingProduct, setEditingProduct]     = useState<Product | null>(null)
   
-  const [name, setName] = useState('')
-  const [category, setCategory] = useState('')
-  const [price, setPrice] = useState('')
+  const [name, setName]               = useState('')
+  const [category, setCategory]       = useState('')
+  const [price, setPrice]             = useState('')
   const [description, setDescription] = useState('')
-  const [imageUrl, setImageUrl] = useState('')
-  const [stock, setStock] = useState('')
+  const [imageUrl, setImageUrl]       = useState('')
+  const [stock, setStock]             = useState('')
 
-  const [submitting, setSubmitting] = useState(false)
+  // Invite Admin Modal State
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteEmail, setInviteEmail]         = useState('')
+  const [inviteName, setInviteName]           = useState('')
+  const [submitting, setSubmitting]           = useState(false)
 
   const fmt = (n: number) =>
-    '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
   const fetchData = async () => {
     setLoading(true)
@@ -46,12 +57,7 @@ export function AdminPage() {
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (prodRes.error) {
-        console.error('[AdminPage] Products fetch error:', prodRes.error)
-        showError(`Products fetch error: ${prodRes.error.message}`)
-      } else {
-        setProducts((prodRes.data || []) as Product[])
-      }
+      if (!prodRes.error) setProducts((prodRes.data || []) as Product[])
 
       // Fetch Orders
       const orderRes = await supabase
@@ -59,13 +65,16 @@ export function AdminPage() {
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (orderRes.error) {
-        console.error('[AdminPage] Orders fetch error:', orderRes.error)
-        // If RLS blocked order fetch because user role in PostgreSQL is still 'customer'
-        showError(`Orders RLS notice: ${orderRes.error.message}. Please verify user role is 'admin' in Supabase profiles table.`)
-      } else {
-        setOrders((orderRes.data || []) as Order[])
-      }
+      if (!orderRes.error) setOrders((orderRes.data || []) as Order[])
+
+      // Fetch User Profiles
+      const profileRes = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (!profileRes.error) setProfiles((profileRes.data || []) as Profile[])
+
     } catch (err) {
       console.error('[AdminPage] Unexpected error:', err)
       showError(err instanceof Error ? err.message : 'Unexpected error loading admin data.')
@@ -196,23 +205,78 @@ export function AdminPage() {
     }
   }
 
+  const handleToggleUserRole = async (targetProfile: Profile) => {
+    const newRole = targetProfile.role === 'admin' ? 'customer' : 'admin'
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', targetProfile.id)
+
+      if (error) throw error
+      showSuccess(`Updated ${targetProfile.name || targetProfile.email}'s role to ${newRole}.`)
+      fetchData()
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to update user role.')
+    }
+  }
+
+  const handleInviteAdmin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inviteEmail.trim()) {
+      showError('Please enter an email address to invite.')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+
+      // Send Magic Link OTP via Supabase
+      const { error: magicLinkError } = await supabase.auth.signInWithOtp({
+        email: inviteEmail.trim(),
+        options: {
+          data: { name: inviteName.trim() || 'Co-Admin' },
+        },
+      })
+
+      if (magicLinkError) throw magicLinkError
+
+      // Update existing profile role if user already exists
+      await supabase
+        .from('profiles')
+        .update({ role: 'admin' })
+        .eq('email', inviteEmail.trim().toLowerCase())
+
+      showSuccess(`Magic Link Admin Invite sent to ${inviteEmail}!`)
+      setShowInviteModal(false)
+      setInviteEmail('')
+      setInviteName('')
+      fetchData()
+    } catch (err) {
+      console.error('[AdminInvite Error]', err)
+      showError(err instanceof Error ? err.message : 'Failed to send admin invite.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div className="w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         
         {/* Header */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-800">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-800 shrink-0">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900">Admin Dashboard</h1>
-              <p className="text-xs text-slate-500">Manage products, stock levels, and user orders</p>
+              <p className="text-xs text-slate-500">Manage catalog products, customer orders, and co-admins</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
               onClick={fetchData}
               className="p-2 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200"
@@ -221,8 +285,14 @@ export function AdminPage() {
               <RefreshCw className="w-4 h-4" />
             </button>
             <button
+              onClick={() => setShowInviteModal(true)}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-xs transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4" /> Invite Admin (OTP Code)
+            </button>
+            <button
               onClick={openCreateModal}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs"
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
             >
               <Plus className="w-4 h-4" /> Add Product
             </button>
@@ -251,6 +321,16 @@ export function AdminPage() {
           >
             <ShoppingBag className="w-4 h-4" /> Orders ({orders.length})
           </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`pb-2.5 text-sm font-bold border-b-2 flex items-center gap-2 transition-colors ${
+              activeTab === 'users'
+                ? 'text-blue-600 border-blue-600'
+                : 'text-slate-500 border-transparent hover:text-slate-800'
+            }`}
+          >
+            <Users className="w-4 h-4" /> Admins &amp; Users ({profiles.length})
+          </button>
         </div>
 
         {/* Content */}
@@ -259,7 +339,7 @@ export function AdminPage() {
             Loading admin data...
           </div>
         ) : activeTab === 'products' ? (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-700 uppercase border-b border-slate-200">
@@ -278,13 +358,7 @@ export function AdminPage() {
                         <img
                           src={prod.image_url || 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&q=80'}
                           alt={prod.name}
-                          className="w-9 h-9 object-cover rounded bg-slate-100 shrink-0"
-                          onError={(e) => {
-                            const t = e.currentTarget
-                            if (!t.src.includes('unsplash')) {
-                              t.src = 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&q=80'
-                            }
-                          }}
+                          className="w-9 h-9 object-cover rounded bg-slate-100 shrink-0 border border-slate-200"
                         />
                         <div>
                           <p className="font-bold text-slate-900 text-sm">{prod.name}</p>
@@ -292,7 +366,7 @@ export function AdminPage() {
                         </div>
                       </td>
                       <td className="p-3">
-                        <span className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-[10px] font-semibold text-slate-700">
+                        <span className="chip chip-slate">
                           {prod.category}
                         </span>
                       </td>
@@ -301,25 +375,25 @@ export function AdminPage() {
                       </td>
                       <td className="p-3">
                         {prod.stock === 0 ? (
-                          <span className="text-red-700 font-bold bg-red-50 border border-red-200 px-2 py-0.5 rounded text-[10px]">Out of Stock</span>
+                          <span className="chip chip-red">Out of Stock</span>
                         ) : prod.stock <= 3 ? (
-                          <span className="text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-[10px]">{prod.stock} (Low)</span>
+                          <span className="chip chip-amber">{prod.stock} (Low)</span>
                         ) : (
-                          <span className="text-emerald-700 font-bold">{prod.stock}</span>
+                          <span className="font-bold text-emerald-700">{prod.stock}</span>
                         )}
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => openEditModal(prod)}
-                            className="p-1.5 rounded bg-slate-100 hover:bg-slate-200 text-blue-700"
+                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-blue-700"
                             title="Edit"
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeleteProduct(prod)}
-                            className="p-1.5 rounded bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600"
+                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600"
                             title="Delete"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -332,29 +406,29 @@ export function AdminPage() {
               </table>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'orders' ? (
           <div className="space-y-3">
             {orders.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500">
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-500">
                 No customer orders found in system.
               </div>
             ) : (
               orders.map((ord) => (
-                <div key={ord.id} className="bg-white p-4 rounded-xl border border-slate-200 space-y-2 shadow-xs">
+                <div key={ord.id} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-xs">
                   <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-100">
                     <div>
-                      <span className="text-[10px] text-slate-400 font-mono">Order ID: {ord.id}</span>
-                      <p className="text-xs text-slate-700">User ID: {ord.user_id}</p>
+                      <span className="text-xs font-mono font-bold text-blue-600">Order ID: #{ord.id}</span>
+                      <p className="text-[11px] text-slate-500 mt-0.5">User ID: {ord.user_id}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="font-bold text-slate-900 text-base">
+                      <span className="font-extrabold text-slate-900 text-lg">
                         {fmt(Number(ord.total_amount))}
                       </span>
                       
                       <select
                         value={ord.order_status}
                         onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value as OrderStatus)}
-                        className="bg-slate-50 border border-slate-200 text-slate-800 text-xs font-semibold rounded-md px-2 py-1 focus:outline-none"
+                        className="bg-slate-50 border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none"
                       >
                         <option value="Processing">Status: Processing</option>
                         <option value="Shipped">Status: Shipped</option>
@@ -365,10 +439,10 @@ export function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {Array.isArray(ord.products) &&
                       ord.products.map((item, idx) => (
-                        <span key={idx} className="bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-xs text-slate-700">
+                        <span key={idx} className="bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-lg text-xs text-slate-700 font-medium">
                           {item.name} × {item.quantity} ({fmt(Number(item.price))})
                         </span>
                       ))}
@@ -377,12 +451,59 @@ export function AdminPage() {
               ))
             )}
           </div>
+        ) : (
+          /* Users & Admin Roles Tab */
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-700 uppercase border-b border-slate-200">
+                  <tr>
+                    <th className="p-3">User Profile</th>
+                    <th className="p-3">Email Address</th>
+                    <th className="p-3">Current Role</th>
+                    <th className="p-3 text-right">Role Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-800 font-medium">
+                  {profiles.map((prof) => (
+                    <tr key={prof.id} className="hover:bg-slate-50">
+                      <td className="p-3 font-bold text-slate-900 flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                          {(prof.name || prof.email)[0].toUpperCase()}
+                        </div>
+                        {prof.name || 'Unnamed User'}
+                      </td>
+                      <td className="p-3 text-slate-600 font-mono">{prof.email}</td>
+                      <td className="p-3">
+                        <span className={`chip ${prof.role === 'admin' ? 'chip-amber' : 'chip-slate'}`}>
+                          {prof.role === 'admin' ? <ShieldAlert className="w-3 h-3 text-amber-600" /> : <UserCheck className="w-3 h-3 text-slate-500" />}
+                          {prof.role}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          onClick={() => handleToggleUserRole(prof)}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+                            prof.role === 'admin'
+                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                              : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+                          }`}
+                        >
+                          {prof.role === 'admin' ? 'Demote to Customer' : 'Promote to Admin 🛡️'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
 
-        {/* Form Modal */}
+        {/* Product Modal */}
         {showProductModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-            <div className="bg-white w-full max-w-lg rounded-xl p-6 space-y-4 border border-slate-200 shadow-xl">
+            <div className="bg-white w-full max-w-lg rounded-2xl p-6 space-y-4 border border-slate-200 shadow-xl">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <h3 className="font-bold text-base text-slate-900">
                   {editingProduct ? 'Edit Product' : 'Add New Product'}
@@ -473,6 +594,82 @@ export function AdminPage() {
                     className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center justify-center gap-1.5"
                   >
                     <Save className="w-4 h-4" /> Save
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Invite Admin Magic Link Modal */}
+        {showInviteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+            <div className="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 border border-slate-200 shadow-xl">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-amber-600" />
+                  <h3 className="font-bold text-base text-slate-900">Invite Co-Admin via OTP Passcode</h3>
+                </div>
+                <button onClick={() => setShowInviteModal(false)} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleInviteAdmin} className="space-y-3 text-xs">
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1 uppercase tracking-wider text-[10px]">
+                    Co-Admin Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Sarah Connor"
+                    value={inviteName}
+                    onChange={(e) => setInviteName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1 uppercase tracking-wider text-[10px]">
+                    Co-Admin Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="admin2@epicvault.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2.5 text-slate-800 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 leading-relaxed">
+                  ✨ Sending an invite delivers a 1-click passwordless <strong>Magic Link email via Brevo</strong>. Once the co-admin clicks the link, they gain access to the Admin Dashboard.
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowInviteModal(false)}
+                    className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-600 font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                  >
+                    {submitting ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Wand2 className="w-4 h-4" /> Send Admin Magic Link
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

@@ -78,6 +78,8 @@ export interface AuthContextType {
   isAdmin: boolean
   signUp: (args: { name: string; email: string; password: string }) => Promise<void>
   signIn: (args: { email: string; password: string }) => Promise<void>
+  sendOtp: (email: string) => Promise<void>
+  verifyOtp: (email: string, token: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
