@@ -1,37 +1,37 @@
 import React, { useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { ToastProvider } from '@/context/ToastContext'
-import { AuthProvider } from '@/context/AuthContext'
-import { CartProvider } from '@/context/CartContext'
-import { WishlistProvider } from '@/context/WishlistContext'
-import { Navbar } from '@/components/layout/Navbar'
-import { Footer } from '@/components/layout/Footer'
-import { NetworkBanner } from '@/components/layout/NetworkBanner'
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
-import { LoginPage } from '@/pages/LoginPage'
-import { SignupPage } from '@/pages/SignupPage'
-import { ProfilePage } from '@/pages/ProfilePage'
+import { ToastProvider } from './context/ToastContext'
+import { AuthProvider } from './context/AuthContext'
+import { CartProvider } from './context/CartContext'
+import { WishlistProvider } from './context/WishlistContext'
+import { Navbar } from './components/layout/Navbar'
+import { Footer } from './components/layout/Footer'
+import { NetworkBanner } from './components/layout/NetworkBanner'
+import { ProtectedRoute } from './components/auth/ProtectedRoute'
+import { LoginPage } from './pages/LoginPage'
+import { SignupPage } from './pages/SignupPage'
+import { ProfilePage } from './pages/ProfilePage'
 
 // Lazy-loaded pages (code-split for performance)
 const ProductsPage = React.lazy(() =>
-  import('@/pages/ProductsPage').then((m) => ({ default: m.ProductsPage }))
+  import('./pages/ProductsPage').then((m) => ({ default: m.ProductsPage }))
 )
 const WishlistPage = React.lazy(() =>
-  import('@/pages/WishlistPage').then((m) => ({ default: m.WishlistPage }))
+  import('./pages/WishlistPage').then((m) => ({ default: m.WishlistPage }))
 )
 const AdminPage = React.lazy(() =>
-  import('@/pages/AdminPage').then((m) => ({ default: m.AdminPage }))
+  import('./pages/AdminPage').then((m) => ({ default: m.AdminPage }))
 )
 const OrderDetailPage = React.lazy(() =>
-  import('@/pages/OrderDetailPage').then((m) => ({ default: m.OrderDetailPage }))
+  import('./pages/OrderDetailPage').then((m) => ({ default: m.OrderDetailPage }))
 )
 const NotFoundPage = React.lazy(() =>
-  import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage }))
+  import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage }))
 )
 
 // Cart Drawer (lazy-loaded)
 const CartDrawer = React.lazy(() =>
-  import('@/components/cart/CartDrawer').then((m) => ({ default: m.CartDrawer }))
+  import('./components/cart/CartDrawer').then((m) => ({ default: m.CartDrawer }))
 )
 
 function PageLoader() {
