@@ -17,6 +17,9 @@ const ProductsPage = React.lazy(() =>
 const AdminPage = React.lazy(() =>
   import('@/pages/AdminPage').then((m) => ({ default: m.AdminPage }))
 )
+const OrderDetailPage = React.lazy(() =>
+  import('@/pages/OrderDetailPage').then((m) => ({ default: m.OrderDetailPage }))
+)
 const NotFoundPage = React.lazy(() =>
   import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage }))
 )
@@ -29,7 +32,7 @@ const CartDrawer = React.lazy(() =>
 function PageLoader() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
     </div>
   )
 }
@@ -52,6 +55,14 @@ function AppShell() {
               element={
                 <ProtectedRoute>
                   <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders/:id"
+              element={
+                <ProtectedRoute>
+                  <OrderDetailPage />
                 </ProtectedRoute>
               }
             />

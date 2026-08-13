@@ -358,6 +358,7 @@ export function AdminPage() {
                       >
                         <option value="Processing">Status: Processing</option>
                         <option value="Shipped">Status: Shipped</option>
+                        <option value="Out for Delivery">Status: Out for Delivery</option>
                         <option value="Delivered">Status: Delivered</option>
                         <option value="Cancelled">Status: Cancelled</option>
                       </select>

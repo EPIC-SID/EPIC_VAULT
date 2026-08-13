@@ -17,7 +17,21 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 3. Create Products Table
+-- 3. Create Addresses Table
+CREATE TABLE IF NOT EXISTS public.addresses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  full_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  street_address TEXT NOT NULL,
+  city TEXT NOT NULL,
+  state TEXT NOT NULL,
+  pincode TEXT NOT NULL,
+  is_default BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 4. Create Products Table
 CREATE TABLE IF NOT EXISTS public.products (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
@@ -30,13 +44,15 @@ CREATE TABLE IF NOT EXISTS public.products (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 4. Create Orders Table
+-- 5. Create Orders Table
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   products JSONB NOT NULL,
   total_amount NUMERIC(10, 2) NOT NULL CHECK (total_amount >= 0),
-  order_status TEXT NOT NULL DEFAULT 'Processing' CHECK (order_status IN ('Processing', 'Shipped', 'Delivered', 'Cancelled')),
+  order_status TEXT NOT NULL DEFAULT 'Processing' CHECK (order_status IN ('Processing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled')),
+  shipping_address JSONB,
+  status_timeline JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -56,10 +72,11 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================================
--- ROW LEVEL SECURITY (RLS) CONFIGURATION — ALL 3 TABLES PROTECTED BY RLS
+-- ROW LEVEL SECURITY (RLS) CONFIGURATION — ALL TABLES PROTECTED BY RLS
 -- ============================================================================
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.addresses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
@@ -67,8 +84,11 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
-DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+
+DROP POLICY IF EXISTS "Users can view their own addresses" ON public.addresses;
+DROP POLICY IF EXISTS "Users can insert their own addresses" ON public.addresses;
+DROP POLICY IF EXISTS "Users can update their own addresses" ON public.addresses;
+DROP POLICY IF EXISTS "Users can delete their own addresses" ON public.addresses;
 
 DROP POLICY IF EXISTS "Products are viewable by everyone" ON public.products;
 DROP POLICY IF EXISTS "Only admins can insert products" ON public.products;
@@ -79,7 +99,7 @@ DROP POLICY IF EXISTS "Users can view their own orders" ON public.orders;
 DROP POLICY IF EXISTS "Users can insert their own orders" ON public.orders;
 DROP POLICY IF EXISTS "Admins can update order status" ON public.orders;
 
--- PROFILES POLICIES (Strict & Non-Recursive: SELECT USING true evaluates instantly without subqueries)
+-- PROFILES POLICIES (Non-Recursive SELECT USING true)
 CREATE POLICY "Public profiles are viewable by everyone" 
   ON public.profiles FOR SELECT USING (true);
 
@@ -88,6 +108,19 @@ CREATE POLICY "Users can insert their own profile"
 
 CREATE POLICY "Users can update their own profile" 
   ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+-- ADDRESSES POLICIES
+CREATE POLICY "Users can view their own addresses" 
+  ON public.addresses FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own addresses" 
+  ON public.addresses FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own addresses" 
+  ON public.addresses FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own addresses" 
+  ON public.addresses FOR DELETE USING (auth.uid() = user_id);
 
 -- PRODUCTS POLICIES
 CREATE POLICY "Products are viewable by everyone" 
@@ -143,7 +176,8 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
 CREATE OR REPLACE FUNCTION public.place_order_atomic(
   p_user_id UUID,
   p_items JSONB,
-  p_total_amount NUMERIC
+  p_total_amount NUMERIC,
+  p_shipping_address JSONB DEFAULT NULL
 )
 RETURNS JSONB AS $$
 DECLARE
@@ -153,6 +187,7 @@ DECLARE
   v_current_stock INT;
   v_product_name TEXT;
   v_order_id UUID;
+  v_initial_timeline JSONB;
 BEGIN
   IF auth.uid() IS NULL OR auth.uid() != p_user_id THEN
     RAISE EXCEPTION 'Unauthorized: Caller ID does not match transaction user ID';
@@ -189,8 +224,15 @@ BEGIN
     WHERE id = v_product_id;
   END LOOP;
 
-  INSERT INTO public.orders (user_id, products, total_amount, order_status)
-  VALUES (p_user_id, p_items, p_total_amount, 'Processing')
+  v_initial_timeline := jsonb_build_array(
+    jsonb_build_object(
+      'status', 'Processing',
+      'timestamp', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+    )
+  );
+
+  INSERT INTO public.orders (user_id, products, total_amount, order_status, shipping_address, status_timeline)
+  VALUES (p_user_id, p_items, p_total_amount, 'Processing', p_shipping_address, v_initial_timeline)
   RETURNING id INTO v_order_id;
 
   RETURN jsonb_build_object(
