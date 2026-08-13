@@ -12,27 +12,59 @@ import type { Profile, AuthContextType } from '@/types'
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
+// Dedicated Admin Emails for instantaneous access
+const ADMIN_EMAILS = ['epicsid6@gmail.com', 'admin@epicvault.com']
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const fetchProfile = useCallback(async (u: User) => {
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
-        .single()
+        .eq('id', u.id)
+        .maybeSingle()
+
+      if (!data && u.email) {
+        const fallback = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', u.email)
+          .maybeSingle()
+
+        if (fallback.data) {
+          data = fallback.data
+        }
+      }
 
       if (error) {
         console.error('[AuthContext] Profile fetch error:', error.message)
-        setProfile(null)
+      }
+
+      const isDesignatedAdmin = u.email ? ADMIN_EMAILS.includes(u.email.toLowerCase()) : false
+      const assignedRole = (data?.role === 'admin' || isDesignatedAdmin) ? 'admin' : (data?.role || 'customer')
+
+      if (data) {
+        setProfile({
+          ...(data as Profile),
+          role: assignedRole
+        })
       } else {
-        setProfile(data as Profile)
+        setProfile({
+          id: u.id,
+          name: (u.user_metadata?.name as string) || u.email?.split('@')[0] || 'User',
+          email: u.email || '',
+          role: assignedRole,
+          avatar_url: null,
+          created_at: u.created_at,
+          updated_at: u.created_at,
+        })
       }
     } catch (err) {
-      console.error('[AuthContext] Unexpected error:', err)
+      console.error('[AuthContext] Unexpected error during profile fetch:', err)
       setProfile(null)
     }
   }, [])
@@ -43,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: { session } } = await supabase.auth.getSession()
         if (session?.user) {
           setUser(session.user)
-          await fetchProfile(session.user.id)
+          await fetchProfile(session.user)
         }
       } catch (err) {
         console.error('[AuthContext] Session init error:', err)
@@ -58,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (_event, session) => {
         if (session?.user) {
           setUser(session.user)
-          await fetchProfile(session.user.id)
+          await fetchProfile(session.user)
         } else {
           setUser(null)
           setProfile(null)
@@ -105,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null)
   }
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = profile?.role === 'admin' || (user?.email ? ADMIN_EMAILS.includes(user.email.toLowerCase()) : false)
 
   return (
     <AuthContext.Provider
