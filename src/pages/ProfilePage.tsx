@@ -42,7 +42,7 @@ export function ProfilePage() {
 
   return (
     <div className="w-full">
-      <div className="inner py-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Profile Card */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">

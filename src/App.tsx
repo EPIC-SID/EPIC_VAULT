@@ -38,7 +38,7 @@ function AppShell() {
   const [cartOpen, setCartOpen] = useState(false)
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col min-h-screen w-full">
       <Navbar onOpenCart={() => setCartOpen(true)} />
 
       <main className="flex-1">

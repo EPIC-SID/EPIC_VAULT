@@ -10,6 +10,19 @@ export interface Profile {
   updated_at: string
 }
 
+export interface Address {
+  id: string
+  user_id: string
+  full_name: string
+  phone: string
+  street_address: string
+  city: string
+  state: string
+  pincode: string
+  is_default: boolean
+  created_at: string
+}
+
 export interface Product {
   id: string
   name: string
@@ -22,7 +35,7 @@ export interface Product {
   updated_at: string
 }
 
-export type OrderStatus = 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled'
+export type OrderStatus = 'Processing' | 'Shipped' | 'Out for Delivery' | 'Delivered' | 'Cancelled'
 
 export interface OrderItem {
   product_id: string
@@ -32,12 +45,19 @@ export interface OrderItem {
   image_url: string | null
 }
 
+export interface StatusTimelineItem {
+  status: OrderStatus
+  timestamp: string
+}
+
 export interface Order {
   id: string
   user_id: string
   products: OrderItem[]
   total_amount: number
   order_status: OrderStatus
+  shipping_address: Address | null
+  status_timeline: StatusTimelineItem[]
   created_at: string
   updated_at: string
 }
@@ -106,4 +126,5 @@ export interface ProductFormData {
 export interface PlaceOrderResult {
   success: boolean
   order_id: string
+  message?: string
 }
