@@ -67,73 +67,6 @@
 
 ---
 
-## Race Condition Challenge & Solution
-
-### The Problem: Concurrent Purchasing
-In standard e-commerce, checking stock on the frontend before calling an `UPDATE` query causes a **race condition**. If two users attempt to purchase the final unit (`stock = 1`) simultaneously:
-
-1. User A reads `stock = 1` (valid).
-2. User B reads `stock = 1` (valid).
-3. User A decrements to `0` and creates an order.
-4. User B decrements to `-1` — overselling non-existent stock.
-
-### The Solution: Atomic PL/pgSQL RPC with `SELECT FOR UPDATE`
-
-```sql
-CREATE OR REPLACE FUNCTION public.place_order_atomic(
-  p_user_id UUID,
-  p_items JSONB,
-  p_total_amount NUMERIC,
-  p_shipping_address JSONB
-)
-RETURNS JSONB AS $$
-DECLARE
-  v_item JSONB;
-  v_product_id UUID;
-  v_quantity INT;
-  v_current_stock INT;
-  v_product_name TEXT;
-  v_order_id UUID;
-BEGIN
-  -- 1. Acquire exclusive ROW LOCK on each product being purchased
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    v_product_id := (v_item->>'product_id')::UUID;
-    v_quantity   := (v_item->>'quantity')::INT;
-
-    -- TX2 blocks here until TX1 commits or rolls back
-    SELECT stock, name INTO v_current_stock, v_product_name
-    FROM public.products WHERE id = v_product_id FOR UPDATE;
-
-    IF v_current_stock < v_quantity THEN
-      RAISE EXCEPTION 'Insufficient stock for "%". Available: %', v_product_name, v_current_stock;
-    END IF;
-  END LOOP;
-
-  -- 2. Deduct inventory atomically
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    UPDATE public.products
-    SET stock = stock - (v_item->>'quantity')::INT
-    WHERE id = (v_item->>'product_id')::UUID;
-  END LOOP;
-
-  -- 3. Record the order
-  INSERT INTO public.orders (user_id, products, total_amount, order_status, shipping_address)
-  VALUES (p_user_id, p_items, p_total_amount, 'Processing', p_shipping_address)
-  RETURNING id INTO v_order_id;
-
-  RETURN jsonb_build_object('success', true, 'order_id', v_order_id);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-```
-
-**Under concurrent load:**
-- **User A** acquires the row lock, verifies stock, decrements, inserts order, commits.
-- **User B** waits for the lock release, re-reads `stock = 0`, triggers an `INSUFFICIENT_STOCK` exception, and the entire transaction is automatically rolled back. User B sees a clean error toast.
-
----
-
 ## Security & RLS Matrix
 
 | Table | Public | Customer | Admin |
@@ -194,6 +127,48 @@ Open [http://localhost:5173](http://localhost:5173).
 ```bash
 npm run build
 ```
+
+---
+
+## API Details
+
+The application communicates with backend services through clean, typed API layers:
+
+### 1. Supabase PostgreSQL REST & RPC API
+- **`GET /rest/v1/products`**: Fetches active product catalog with category, price, stock filters.
+- **`POST /rest/v1/rpc/place_order_atomic`**: Executes atomic checkout with pessimistic row locking (`SELECT FOR UPDATE`), stock deduction, and order creation in a single round-trip.
+- **`POST /rest/v1/rpc/increment_coupon_usage`**: Atomically validates and increments single-use coupon counters.
+- **`GET /rest/v1/orders`**: Retrieves authenticated user's order history with RLS security.
+- **`GET /rest/v1/wishlists` & `POST /rest/v1/wishlists`**: Manages user wishlist items.
+- **`GET /rest/v1/reviews` & `POST /rest/v1/reviews`**: Fetches and posts user ratings and text reviews.
+
+### 2. Supabase Auth API
+- **`POST /auth/v1/signup`**: Registers a new customer and sets initial profile records.
+- **`POST /auth/v1/token?grant_type=password`**: Authenticates email and password.
+- **`POST /auth/v1/otp`**: Generates and dispatches 6-digit magic OTP code for passwordless login.
+
+### 3. Brevo Transactional SMTP REST API
+- **`POST https://api.brevo.com/v3/smtp/email`**: Dispatches asynchronous HTML order confirmation receipts and real-time shipping status notifications (`Processing` → `Shipped` → `Delivered`) with direct tracking links.
+
+---
+
+## Challenges Faced & How They Were Solved
+
+### 1. Concurrent Purchasing & Inventory Race Conditions
+- **Challenge:** If two users attempt to purchase the final unit (`stock = 1`) simultaneously, naive frontend stock checking leads to negative inventory and overselling.
+- **Solution:** Implemented the `place_order_atomic` PL/pgSQL stored procedure with `SELECT ... FOR UPDATE` pessimistic row locking. Subsequent requests wait for the lock release and fail gracefully if stock reaches zero, aborting the transaction cleanly.
+
+### 2. Mobile Responsive Grid Sizing
+- **Challenge:** Standard e-commerce grids cause oversized 1-column product cards on mobile devices, requiring excessive scrolling.
+- **Solution:** Engineered a compact 2-column mobile grid layout with clamped typography, swipeable category pills, and responsive modals optimized for touch interactions.
+
+### 3. Asynchronous Email Deliverability & Redirects
+- **Challenge:** Preventing transactional emails from embedding dead `localhost` links when developing locally or deploying across environments.
+- **Solution:** Built dynamic origin detection in `getAppUrl()` with environment overrides (`VITE_SITE_URL`) to guarantee that all email links and auth redirects navigate to the live production deployment.
+
+### 4. Offline & Low-Network Resilience
+- **Challenge:** Sudden mobile network disconnects during browsing can cause failed transactions and lost cart items.
+- **Solution:** Added `useNetworkStatus` with an ambient `NetworkBanner` and synchronized cart persistence via browser `localStorage` alongside skeleton loading states.
 
 ---
 

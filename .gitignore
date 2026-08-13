@@ -33,3 +33,7 @@ lerna-debug.log*
 *.pdf
 *.txt
 
+# Interview preparation folder
+interview_prep/
+
+
