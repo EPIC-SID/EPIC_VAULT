@@ -22,7 +22,7 @@ export function ProductCard({ product, onSelectProduct }: ProductCardProps) {
   const isLowStock   = product.stock > 0 && product.stock <= 3
 
   return (
-    <article className="card-base card-hover overflow-hidden flex flex-col group relative">
+    <article className="card-base card-hover rounded-xl sm:rounded-2xl overflow-hidden flex flex-col group relative">
 
       {/* Image Area with Shimmer Skeleton Loader */}
       <div
@@ -32,7 +32,7 @@ export function ProductCard({ product, onSelectProduct }: ProductCardProps) {
         {/* Shimmer skeleton before load */}
         {!imageLoaded && (
           <div className="absolute inset-0 bg-slate-200 animate-pulse flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full border-2 border-slate-300 border-t-slate-400 animate-spin" />
+            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-slate-300 border-t-slate-400 animate-spin" />
           </div>
         )}
 
@@ -55,7 +55,7 @@ export function ProductCard({ product, onSelectProduct }: ProductCardProps) {
         />
 
         {/* Category Tag */}
-        <span className="chip chip-slate absolute top-2.5 left-2.5 shadow-xs">
+        <span className="chip chip-slate absolute top-1.5 left-1.5 sm:top-2.5 sm:left-2.5 text-[9px] sm:text-xs px-1.5 py-0.5 sm:px-2.5 sm:py-1 shadow-xs">
           {product.category}
         </span>
 
@@ -66,37 +66,39 @@ export function ProductCard({ product, onSelectProduct }: ProductCardProps) {
             toggleWishlist(product)
           }}
           title={wishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
-          className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all z-10 ${
+          className={`absolute top-1.5 right-1.5 sm:top-2.5 sm:right-2.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md transition-all z-10 ${
             wishlisted
               ? 'bg-rose-500 text-white hover:bg-rose-600'
               : 'bg-white/90 backdrop-blur-sm text-slate-500 hover:bg-rose-50 hover:text-rose-500'
           }`}
         >
-          <Heart className={`w-3.5 h-3.5 ${wishlisted ? 'fill-white' : ''}`} />
+          <Heart className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${wishlisted ? 'fill-white' : ''}`} />
         </button>
 
         {/* Stock Badge */}
-        <div className="absolute bottom-2.5 right-2.5">
+        <div className="absolute bottom-1.5 right-1.5 sm:bottom-2.5 sm:right-2.5">
           {isOutOfStock ? (
-            <span className="chip chip-red shadow-xs">
-              <AlertTriangle className="w-3 h-3" />
-              Sold Out
+            <span className="chip chip-red text-[9px] sm:text-xs px-1.5 py-0.5 shadow-xs">
+              <AlertTriangle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span className="hidden sm:inline">Sold Out</span>
+              <span className="sm:hidden">Out</span>
             </span>
           ) : isLowStock ? (
-            <span className="chip chip-amber shadow-xs">
-              <Flame className="w-3 h-3" />
+            <span className="chip chip-amber text-[9px] sm:text-xs px-1.5 py-0.5 shadow-xs">
+              <Flame className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               {product.stock} left
             </span>
           ) : (
-            <span className="chip chip-green shadow-xs">
-              <CheckCircle className="w-3 h-3" />
-              In Stock
+            <span className="chip chip-green text-[9px] sm:text-xs px-1.5 py-0.5 shadow-xs">
+              <CheckCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span className="hidden sm:inline">In Stock</span>
+              <span className="sm:hidden">In Stock</span>
             </span>
           )}
         </div>
 
         {/* Hover Quick View Overlay */}
-        <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <div className="hidden sm:flex absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center">
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -111,39 +113,39 @@ export function ProductCard({ product, onSelectProduct }: ProductCardProps) {
       </div>
 
       {/* Content Details */}
-      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+      <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
         <div>
           <h3
             onClick={() => onSelectProduct(product)}
-            className="font-bold text-sm text-slate-900 line-clamp-1 cursor-pointer hover:text-blue-600 transition-colors"
+            className="font-bold text-xs sm:text-sm text-slate-900 line-clamp-1 sm:line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors"
           >
             {product.name}
           </h3>
-          <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">
+          <p className="hidden sm:block text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">
             {product.description || 'No description provided.'}
           </p>
         </div>
 
         {/* Price & Action */}
-        <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+        <div className="pt-2 sm:pt-3 border-t border-slate-100 flex items-center justify-between gap-1.5 sm:gap-2">
           <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Price</span>
-            <span className="font-extrabold text-base text-slate-900">
-              ₹{Number(product.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Price</span>
+            <span className="font-extrabold text-xs sm:text-base text-slate-900">
+              ₹{Number(product.price).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
             </span>
           </div>
 
           <button
             disabled={isOutOfStock}
             onClick={() => addToCart(product, 1)}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-3.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition-all shadow-xs ${
               isOutOfStock
                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
           >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            {isOutOfStock ? 'Sold Out' : 'Add'}
+            <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            <span>{isOutOfStock ? 'Sold' : 'Add'}</span>
           </button>
         </div>
 

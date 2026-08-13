@@ -65,13 +65,13 @@ export function ProductDetailModal({ product, onClose }: ProductDetailModalProps
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-2xl rounded-2xl overflow-hidden border border-slate-200 shadow-2xl relative"
+        className="bg-white w-full max-w-2xl rounded-2xl overflow-hidden border border-slate-200 shadow-2xl relative max-h-[90vh] flex flex-col overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-1.5 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-slate-900 shadow-sm"
+          className="absolute top-3.5 right-3.5 z-10 p-1.5 rounded-full bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-500 hover:text-slate-900 shadow-sm"
         >
           <X className="w-4 h-4" />
         </button>
@@ -79,7 +79,7 @@ export function ProductDetailModal({ product, onClose }: ProductDetailModalProps
         <div className="grid grid-cols-1 sm:grid-cols-2 min-h-0">
 
           {/* Image */}
-          <div className="relative bg-slate-100" style={{ minHeight: '260px' }}>
+          <div className="relative bg-slate-100 h-52 sm:h-full min-h-[190px] sm:min-h-[260px]">
             <img
               src={product.image_url || FALLBACK_IMAGE}
               alt={product.name}
@@ -97,7 +97,7 @@ export function ProductDetailModal({ product, onClose }: ProductDetailModalProps
           </div>
 
           {/* Details */}
-          <div className="p-6 flex flex-col gap-4">
+          <div className="p-4 sm:p-6 flex flex-col gap-3 sm:gap-4">
 
             {/* Availability */}
             <div>
