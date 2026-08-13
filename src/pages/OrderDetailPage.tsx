@@ -84,6 +84,7 @@ export function OrderDetailPage() {
 
   // Calculate timeline index
   const isCancelled = order.order_status === 'Cancelled'
+  const isDelivered = order.order_status === 'Delivered'
   const currentStageIndex = isCancelled
     ? -1
     : STAGES.findIndex((s) => s.status === order.order_status)
@@ -137,7 +138,14 @@ export function OrderDetailPage() {
 
         {/* Visual Progress Timeline Tracker */}
         <div className="space-y-3">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Delivery Progress</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Delivery Progress</h3>
+            {isDelivered && (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Successfully Delivered
+              </span>
+            )}
+          </div>
 
           {isCancelled ? (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 text-red-700">
@@ -145,6 +153,39 @@ export function OrderDetailPage() {
               <div className="text-xs">
                 <span className="font-bold block">Order Cancelled</span>
                 <span className="text-red-600">This order has been cancelled and refunded.</span>
+              </div>
+            </div>
+          ) : isDelivered ? (
+            <div className="space-y-3">
+              <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-4 flex items-center gap-3 text-emerald-900">
+                <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div className="text-xs">
+                  <span className="font-bold text-sm block text-emerald-950">Package Delivered Successfully!</span>
+                  <span className="text-emerald-700">Your shipment has arrived at the destination. Thank you for choosing EPIC_VAULT!</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {STAGES.map((stage, idx) => (
+                  <div
+                    key={stage.status}
+                    className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/50 text-emerald-900 transition-all shadow-xs"
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-emerald-600 text-white">
+                        ✓
+                      </div>
+                      <span className="text-xs font-bold text-emerald-950">
+                        {stage.label}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-emerald-700 pl-8 font-medium">
+                      Completed
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           ) : (
@@ -167,8 +208,10 @@ export function OrderDetailPage() {
                     <div className="flex items-center gap-2 mb-1.5">
                       <div
                         className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          isCompleted
+                          isCurrent
                             ? 'bg-blue-600 text-white'
+                            : isCompleted
+                            ? 'bg-emerald-600 text-white'
                             : 'bg-slate-200 text-slate-500'
                         }`}
                       >

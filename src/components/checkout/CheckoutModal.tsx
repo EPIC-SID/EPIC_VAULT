@@ -202,7 +202,11 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
         // Increment coupon usage count
         if (couponCode) {
-          await supabase.rpc('increment_coupon_usage', { p_code: couponCode }).catch(() => {})
+          try {
+            await supabase.rpc('increment_coupon_usage', { p_code: couponCode })
+          } catch (couponErr) {
+            console.error('[Checkout] Coupon usage update error:', couponErr)
+          }
         }
 
         clearCart()
