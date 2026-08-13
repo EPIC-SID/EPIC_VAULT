@@ -1,4 +1,4 @@
-# 🏆 EPIC_VAULT — Full-Stack E-Commerce Platform
+# EPIC_VAULT — Full-Stack E-Commerce Platform
 
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript)](https://www.typescriptlang.org/)
@@ -11,18 +11,18 @@ A modern, functional Full-Stack E-Commerce web application built for the **ACM J
 
 ---
 
-## 📌 Project Features
+## Project Features
 
-- 🛒 **Interactive Product Catalog**: Search by keyword, filter by category, and sort by price or name.
-- ⚡ **Real-Time Stock Enforcement**: Product quantities in cart are capped server-side and client-side by available stock.
-- 🔐 **Supabase Auth & RLS**: User registration, login session persistence, and Row-Level Security policies.
-- 🛡️ **Race-Condition-Safe Checkout**: Handled inside PostgreSQL using `SELECT ... FOR UPDATE` row locks to prevent double-purchasing of limited stock.
-- 👑 **Admin Management Dashboard**: Protected admin routes to create, edit, delete products, and manage order statuses (`Processing` → `Shipped` → `Delivered`).
-- 🎨 **Clean Responsive UI**: Styled with Tailwind CSS v4 in light theme using Indian Rupee (`₹`) formatting.
+- **Interactive Product Catalog**: Search by keyword, filter by category, and sort by price or name.
+- **Real-Time Stock Enforcement**: Product quantities in cart are capped server-side and client-side by available stock.
+- **Supabase Auth & RLS**: User registration, login session persistence, and Row-Level Security policies.
+- **Race-Condition-Safe Checkout**: Handled inside PostgreSQL using `SELECT ... FOR UPDATE` row locks to prevent double-purchasing of limited stock.
+- **Admin Management Dashboard**: Protected admin routes to create, edit, delete products, and manage order statuses (`Processing` → `Shipped` → `Delivered`).
+- **Clean Responsive UI**: Styled with Tailwind CSS v4 in light theme using Indian Rupee (`₹`) formatting.
 
 ---
 
-## ⚡ Race Condition Challenge & Solution
+## Race Condition Challenge & Solution
 
 ### The Problem: Concurrent Purchasing
 In standard e-commerce implementations, checking stock on the frontend before calling an `UPDATE` query leads to a **race condition**. If two users attempt to purchase the final unit (`stock = 1`) at the exact same millisecond:
@@ -91,7 +91,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 🔐 Security & RLS Matrix
+## Security & RLS Matrix
 
 | Entity | Public Access | Customer Access | Admin Access |
 |---|---|---|---|
@@ -101,7 +101,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 🛠️ Project Setup & Local Run
+## Project Setup & Local Run
 
 ### Prerequisites
 - Node.js 18+
@@ -137,7 +137,7 @@ npm run build
 
 ---
 
-## 🚀 Deployment (Vercel)
+## Deployment (Vercel)
 
 This application is configured for single-page app (SPA) routing on **Vercel** via `vercel.json`:
 
@@ -157,7 +157,7 @@ This application is configured for single-page app (SPA) routing on **Vercel** v
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 EPIC_VAULT/
