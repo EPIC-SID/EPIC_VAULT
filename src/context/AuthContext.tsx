@@ -102,6 +102,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [fetchProfile])
 
+  const getRedirectUrl = () => {
+    if (import.meta.env.VITE_SITE_URL) {
+      return import.meta.env.VITE_SITE_URL.replace(/\/$/, '')
+    }
+    if (typeof window !== 'undefined' && window.location.origin) {
+      return window.location.origin.replace(/\/$/, '')
+    }
+    return 'https://epic-vault.vercel.app'
+  }
+
   const signUp = async ({
     name,
     email,
@@ -111,10 +121,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string
     password: string
   }) => {
+    const redirectUrl = getRedirectUrl()
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name } },
+      options: {
+        data: { name },
+        emailRedirectTo: `${redirectUrl}/`,
+      },
     })
     if (error) throw error
   }
@@ -131,8 +145,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const sendOtp = async (email: string) => {
+    const redirectUrl = getRedirectUrl()
     const { error } = await supabase.auth.signInWithOtp({
       email,
+      options: {
+        emailRedirectTo: `${redirectUrl}/`,
+      },
     })
     if (error) throw error
   }
