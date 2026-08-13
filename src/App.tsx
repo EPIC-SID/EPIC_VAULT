@@ -48,6 +48,7 @@ function AppShell() {
         <React.Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/"        element={<ProductsPage />} />
+            <Route path="/products" element={<ProductsPage />} />
             <Route path="/login"   element={<LoginPage />} />
             <Route path="/signup"  element={<SignupPage />} />
             <Route

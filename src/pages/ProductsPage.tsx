@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useProducts } from '@/hooks/useProducts'
 import { ProductFilters } from '@/components/products/ProductFilters'
 import { ProductCard } from '@/components/products/ProductCard'
@@ -8,10 +9,42 @@ import { ShoppingBag, AlertCircle, RefreshCw, Package, CheckCircle2, Layers } fr
 
 export function ProductsPage() {
   const { products, categories, loading, error, refetch } = useProducts()
-  const [searchQuery, setSearchQuery]         = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('All')
-  const [sortBy, setSortBy]                   = useState('name-asc')
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const categoryParam = searchParams.get('category')
+
+  const [searchQuery, setSearchQuery]           = useState('')
+  const [selectedCategory, setSelectedCategory] = useState(categoryParam || 'All')
+  const [sortBy, setSortBy]                     = useState('name-asc')
+  const [selectedProduct, setSelectedProduct]   = useState<Product | null>(null)
+
+  // Sync selected category when URL query parameter changes
+  useEffect(() => {
+    const catFromUrl = searchParams.get('category')
+    if (catFromUrl) {
+      setSelectedCategory(catFromUrl)
+    } else {
+      setSelectedCategory('All')
+    }
+  }, [searchParams])
+
+  const handleCategoryChange = (cat: string) => {
+    setSelectedCategory(cat)
+    const newParams = new URLSearchParams(searchParams)
+    if (cat === 'All') {
+      newParams.delete('category')
+    } else {
+      newParams.set('category', cat)
+    }
+    setSearchParams(newParams)
+  }
+
+  const handleResetFilters = () => {
+    setSearchQuery('')
+    setSelectedCategory('All')
+    setSortBy('name-asc')
+    setSearchParams({})
+  }
 
   const inStockCount = useMemo(
     () => products.filter((p) => p.stock > 0).length,
@@ -47,7 +80,7 @@ export function ProductsPage() {
         <div className="space-y-2 max-w-2xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold">
             <ShoppingBag className="w-3.5 h-3.5" />
-            ACM Webmaster Recruitment Project
+            ACM Webmaster Store Catalog
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             EPIC_VAULT Store
@@ -58,107 +91,113 @@ export function ProductsPage() {
         </div>
 
         {/* Stats Summary Widget */}
-        <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 p-4 rounded-xl shrink-0">
-          <div className="text-center px-3 border-r border-slate-200">
-            <div className="flex items-center justify-center gap-1 text-slate-900 font-extrabold text-xl">
-              <Package className="w-4 h-4 text-blue-600" />
-              {products.length}
+        <div className="flex flex-row md:flex-col justify-around gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+              <Package className="w-5 h-5" />
             </div>
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">Total</p>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-slate-400">Total Products</p>
+              <p className="text-base font-extrabold text-slate-900 leading-none">{products.length}</p>
+            </div>
           </div>
 
-          <div className="text-center px-3 border-r border-slate-200">
-            <div className="flex items-center justify-center gap-1 text-slate-900 font-extrabold text-xl">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              {inStockCount}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">In Stock</p>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-slate-400">In Stock</p>
+              <p className="text-base font-extrabold text-slate-900 leading-none">{inStockCount}</p>
+            </div>
           </div>
 
-          <div className="text-center px-3">
-            <div className="flex items-center justify-center gap-1 text-slate-900 font-extrabold text-xl">
-              <Layers className="w-4 h-4 text-indigo-600" />
-              {Math.max(0, categories.length - 1)}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
+              <Layers className="w-5 h-5" />
             </div>
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">Categories</p>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-slate-400">Categories</p>
+              <p className="text-base font-extrabold text-slate-900 leading-none">{categories.length}</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Search & Filter Component */}
+      {/* Product Filters & Search */}
       <ProductFilters
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
+        setSelectedCategory={handleCategoryChange}
+        categories={categories}
         sortBy={sortBy}
         setSortBy={setSortBy}
-        categories={categories}
         totalResults={filteredProducts.length}
       />
 
-      {/* Error View */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center space-y-3 max-w-md mx-auto">
-          <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
-          <div>
-            <h3 className="font-bold text-slate-900">Database Connection Error</h3>
-            <p className="text-xs text-slate-600 mt-1">{error}</p>
-          </div>
+      {/* Main Content Area */}
+      {loading ? (
+        <div className="py-20 text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-semibold text-slate-500">Loading catalog from database...</p>
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 p-6 rounded-xl text-center space-y-3">
+          <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
+          <h3 className="font-bold text-slate-900 text-sm">Failed to load catalog</h3>
+          <p className="text-xs text-red-700">{error}</p>
           <button
             onClick={refetch}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-xs"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 text-white font-semibold text-xs hover:bg-red-700"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Retry Fetch
+            <RefreshCw className="w-3.5 h-3.5" /> Retry
           </button>
         </div>
-      )}
-
-      {/* Loading Skeleton */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 animate-pulse shadow-xs">
-              <div className="aspect-square bg-slate-100 rounded-lg"></div>
-              <div className="h-4 bg-slate-100 rounded w-3/4"></div>
-              <div className="h-3 bg-slate-100 rounded w-1/2"></div>
-              <div className="pt-2 flex justify-between items-center">
-                <div className="h-5 bg-slate-100 rounded w-1/3"></div>
-                <div className="h-8 bg-slate-100 rounded w-1/4"></div>
-              </div>
-            </div>
-          ))}
-        </div>
       ) : filteredProducts.length === 0 ? (
-        /* Empty State */
-        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center max-w-md mx-auto space-y-3 shadow-xs">
-          <Package className="w-10 h-10 text-slate-300 mx-auto" />
-          <div>
-            <h3 className="font-bold text-slate-900 text-base">No Products Found</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              No products match your active search term or category filter. Try clearing filters.
-            </p>
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+            <Package className="w-6 h-6" />
           </div>
+          <h3 className="font-bold text-slate-900 text-base">No products found</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            No items matched your current filter criteria. Try adjusting your search keywords or category filters.
+          </p>
+          <button
+            onClick={handleResetFilters}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Clear All Filters
+          </button>
         </div>
       ) : (
-        /* Product Cards Grid — Proportional 4-column layout */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onSelectProduct={setSelectedProduct}
-            />
-          ))}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+            <span>Showing <strong className="text-slate-900">{filteredProducts.length}</strong> products</span>
+            {selectedCategory !== 'All' && (
+              <span className="chip chip-blue">Category: {selectedCategory}</span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onSelectProduct={setSelectedProduct}
+              />
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Product Quick View Modal */}
-      <ProductDetailModal
-        product={selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-      />
-
+      {/* Product Details Modal */}
+      {selectedProduct && (
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
     </div>
   )
 }
