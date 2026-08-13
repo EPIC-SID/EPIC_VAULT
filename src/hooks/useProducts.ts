@@ -13,11 +13,30 @@ interface CacheEntry {
   timestamp: number
 }
 
+// Deduplicate helper by product name to guard against repeated seed SQL runs
+function deduplicateProducts(rawList: Product[]): Product[] {
+  const seen = new Set<string>()
+  const uniqueList: Product[] = []
+
+  for (const product of rawList) {
+    const key = product.name.trim().toLowerCase()
+    if (!seen.has(key)) {
+      seen.add(key)
+      uniqueList.push(product)
+    }
+  }
+
+  return uniqueList
+}
+
 function readCache(): CacheEntry | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as CacheEntry
+    const parsed = JSON.parse(raw) as CacheEntry
+    // Ensure cached items are also deduplicated
+    parsed.products = deduplicateProducts(parsed.products)
+    return parsed
   } catch {
     return null
   }
@@ -55,7 +74,6 @@ export function useProducts() {
     const cached = readCache()
     if (cached && !forceRefresh) {
       if (isCacheFresh(cached)) {
-        // Cache is fresh — serve instantly, skip network
         setProducts(cached.products)
         setCategories(cached.categories)
         setLastUpdated(new Date(cached.timestamp))
@@ -63,12 +81,11 @@ export function useProducts() {
         setIsStale(false)
         return
       } else {
-        // Cache is stale — show it immediately while we re-fetch in background
         setProducts(cached.products)
         setCategories(cached.categories)
         setLastUpdated(new Date(cached.timestamp))
-        setLoading(false)      // don't block UI
-        setIsStale(true)       // signal to UI that this is stale cached data
+        setLoading(false)
+        setIsStale(true)
       }
     } else {
       setLoading(true)
@@ -85,7 +102,8 @@ export function useProducts() {
 
         if (fetchErr) throw fetchErr
 
-        const fetchedProducts = (data ?? []) as Product[]
+        // Deduplicate in case seed scripts were executed multiple times
+        const fetchedProducts = deduplicateProducts((data ?? []) as Product[])
         const cats = Array.from(
           new Set(fetchedProducts.map((p) => p.category).filter(Boolean))
         )
@@ -102,7 +120,6 @@ export function useProducts() {
         attempt++
         if (attempt >= MAX_RETRIES) {
           console.error('[useProducts] All retries exhausted:', err)
-          // Only show error if we have no cached data to fall back on
           if (!cached) {
             setError(err instanceof Error ? err.message : 'Failed to load products from database.')
           }
