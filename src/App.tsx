@@ -5,6 +5,7 @@ import { AuthProvider } from '@/context/AuthContext'
 import { CartProvider } from '@/context/CartContext'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
+import { NetworkBanner } from '@/components/layout/NetworkBanner'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { LoginPage } from '@/pages/LoginPage'
 import { SignupPage } from '@/pages/SignupPage'
@@ -42,6 +43,7 @@ function AppShell() {
 
   return (
     <div className="flex flex-col min-h-screen w-full">
+      <NetworkBanner />
       <Navbar onOpenCart={() => setCartOpen(true)} />
 
       <main className="flex-1">

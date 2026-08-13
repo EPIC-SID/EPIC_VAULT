@@ -5,7 +5,7 @@ import { ProductFilters } from '@/components/products/ProductFilters'
 import { ProductCard } from '@/components/products/ProductCard'
 import { ProductDetailModal } from '@/components/products/ProductDetailModal'
 import type { Product } from '@/types'
-import { ShoppingBag, AlertCircle, RefreshCw, Package, CheckCircle2, Layers, ChevronDown } from 'lucide-react'
+import { ShoppingBag, AlertCircle, RefreshCw, Package, CheckCircle2, Layers, ChevronDown, Clock, Wifi } from 'lucide-react'
 
 // Skeleton Loader Card component for slow network connections
 function ProductCardSkeleton() {
@@ -24,7 +24,7 @@ function ProductCardSkeleton() {
 }
 
 export function ProductsPage() {
-  const { products, categories, loading, error, refetch } = useProducts()
+  const { products, categories, loading, error, isStale, lastUpdated, refetch } = useProducts()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const categoryParam = searchParams.get('category')
@@ -149,6 +149,25 @@ export function ProductsPage() {
           </div>
         </div>
       </div>
+
+      {/* Stale Cache Notice — shown when serving cached data while re-fetching */}
+      {isStale && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">
+          <div className="flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            <span>
+              Showing cached catalog from {lastUpdated ? lastUpdated.toLocaleTimeString() : 'earlier'}. Fetching latest products in background…
+            </span>
+          </div>
+          <button
+            onClick={refetch}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-700 font-semibold transition-colors whitespace-nowrap"
+          >
+            <Wifi className="w-3 h-3" />
+            Force Refresh
+          </button>
+        </div>
+      )}
 
       {/* Product Filters & Search */}
       <ProductFilters
