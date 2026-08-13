@@ -18,10 +18,8 @@ export function ProtectedRoute({
   if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
-        <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-        <p className="text-sm font-medium text-slate-500">
-          Verifying session…
-        </p>
+        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+        <p className="text-xs font-semibold text-slate-500">Verifying session...</p>
       </div>
     )
   }
@@ -32,23 +30,22 @@ export function ProtectedRoute({
 
   if (requireAdmin && !isAdmin) {
     return (
-      <div className="max-w-md mx-auto my-20 px-6 space-y-5 text-center animate-fade-in">
-        <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto">
-          <ShieldAlert className="w-7 h-7 text-rose-400" />
+      <div className="max-w-md mx-auto my-16 p-8 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-4 text-center">
+        <div className="w-12 h-12 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center mx-auto text-red-600">
+          <ShieldAlert className="w-6 h-6" />
         </div>
-        <div>
-          <h2 className="font-display text-xl font-bold text-white">Access Denied</h2>
-          <p className="text-sm text-slate-400 mt-2">
-            This area requires administrator privileges. Your current role is{' '}
-            <span className="font-semibold text-slate-200">
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-slate-900">Access Denied</h2>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            This area requires administrator privileges. Your currently logged-in user (<span className="font-semibold text-slate-900">{profile?.email ?? user.email}</span>) has the role{' '}
+            <span className="font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded text-[11px]">
               "{profile?.role ?? 'customer'}"
-            </span>
-            .
+            </span>.
           </p>
         </div>
         <button
           onClick={() => window.history.back()}
-          className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-colors"
+          className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-colors"
         >
           Go Back
         </button>

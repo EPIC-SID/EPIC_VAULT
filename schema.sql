@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.products (
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  products JSONB NOT NULL, -- Array of [{ product_id, name, price, quantity }]
+  products JSONB NOT NULL,
   total_amount NUMERIC(10, 2) NOT NULL CHECK (total_amount >= 0),
   order_status TEXT NOT NULL DEFAULT 'Processing' CHECK (order_status IN ('Processing', 'Shipped', 'Delivered', 'Cancelled')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -42,14 +42,44 @@ CREATE TABLE IF NOT EXISTS public.orders (
 );
 
 -- ============================================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- SECURITY DEFINER HELPER FUNCTION
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================================
+-- ROW LEVEL SECURITY (RLS) CONFIGURATION — ALL 3 TABLES PROTECTED BY RLS
 -- ============================================================================
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
--- PROFILES POLICIES
+-- Clean Drop Old Policies
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+
+DROP POLICY IF EXISTS "Products are viewable by everyone" ON public.products;
+DROP POLICY IF EXISTS "Only admins can insert products" ON public.products;
+DROP POLICY IF EXISTS "Only admins can update products" ON public.products;
+DROP POLICY IF EXISTS "Only admins can delete products" ON public.products;
+
+DROP POLICY IF EXISTS "Users can view their own orders" ON public.orders;
+DROP POLICY IF EXISTS "Users can insert their own orders" ON public.orders;
+DROP POLICY IF EXISTS "Admins can update order status" ON public.orders;
+
+-- PROFILES POLICIES (Strict & Non-Recursive: SELECT USING true evaluates instantly without subqueries)
 CREATE POLICY "Public profiles are viewable by everyone" 
   ON public.profiles FOR SELECT USING (true);
 
@@ -64,33 +94,25 @@ CREATE POLICY "Products are viewable by everyone"
   ON public.products FOR SELECT USING (true);
 
 CREATE POLICY "Only admins can insert products" 
-  ON public.products FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  ON public.products FOR INSERT WITH CHECK (public.is_admin());
 
 CREATE POLICY "Only admins can update products" 
-  ON public.products FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  ON public.products FOR UPDATE USING (public.is_admin());
 
 CREATE POLICY "Only admins can delete products" 
-  ON public.products FOR DELETE USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  ON public.products FOR DELETE USING (public.is_admin());
 
 -- ORDERS POLICIES
 CREATE POLICY "Users can view their own orders" 
   ON public.orders FOR SELECT USING (
-    auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+    auth.uid() = user_id OR public.is_admin()
   );
 
 CREATE POLICY "Users can insert their own orders" 
   ON public.orders FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Admins can update order status" 
-  ON public.orders FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  ON public.orders FOR UPDATE USING (public.is_admin());
 
 -- ============================================================================
 -- AUTOMATIC PROFILE TRIGGER ON SIGNUP
@@ -132,18 +154,15 @@ DECLARE
   v_product_name TEXT;
   v_order_id UUID;
 BEGIN
-  -- Verify caller is authenticated user
   IF auth.uid() IS NULL OR auth.uid() != p_user_id THEN
     RAISE EXCEPTION 'Unauthorized: Caller ID does not match transaction user ID';
   END IF;
 
-  -- Step 1: Validate stock for all items using ROW LOCKING (FOR UPDATE)
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
   LOOP
     v_product_id := (v_item->>'product_id')::UUID;
     v_quantity   := (v_item->>'quantity')::INT;
 
-    -- SELECT ... FOR UPDATE locks the product row until transaction ends
     SELECT stock, name INTO v_current_stock, v_product_name
     FROM public.products
     WHERE id = v_product_id
@@ -159,7 +178,6 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- Step 2: Deduct stock for all items
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
   LOOP
     v_product_id := (v_item->>'product_id')::UUID;
@@ -171,12 +189,10 @@ BEGIN
     WHERE id = v_product_id;
   END LOOP;
 
-  -- Step 3: Insert Order Record
   INSERT INTO public.orders (user_id, products, total_amount, order_status)
   VALUES (p_user_id, p_items, p_total_amount, 'Processing')
   RETURNING id INTO v_order_id;
 
-  -- Return Success Response
   RETURN jsonb_build_object(
     'success', true,
     'order_id', v_order_id,
@@ -184,7 +200,6 @@ BEGIN
   );
 
 EXCEPTION WHEN OTHERS THEN
-  -- PostgreSQL automatically rolls back all changes on exception
   RAISE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

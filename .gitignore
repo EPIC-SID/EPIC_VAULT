@@ -28,3 +28,8 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# PDF and TXT files
+*.pdf
+*.txt
+
