@@ -103,13 +103,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile])
 
   const getRedirectUrl = () => {
+    // 1. Explicitly configured production URL in env
     if (import.meta.env.VITE_SITE_URL) {
       return import.meta.env.VITE_SITE_URL.replace(/\/$/, '')
     }
-    if (typeof window !== 'undefined' && window.location.origin) {
+    // 2. If running on actual live domain (non-localhost), use current origin
+    if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1')) {
       return window.location.origin.replace(/\/$/, '')
     }
-    return 'https://epic-vault.vercel.app'
+    // 3. Fallback production URL for local dev to prevent sending localhost in emails
+    return 'https://epic-vault-store.vercel.app'
   }
 
   const signUp = async ({

@@ -7,16 +7,16 @@ const SENDER_EMAIL  = import.meta.env.VITE_BREVO_SENDER_EMAIL || 'epicsid6@gmail
 const SENDER_NAME   = import.meta.env.VITE_BREVO_SENDER_NAME || 'EPIC_VAULT Store'
 
 /**
- * Returns the current application base URL dynamically
+ * Returns the current application base URL dynamically (avoiding localhost in emails)
  */
 export function getAppUrl(): string {
   if (import.meta.env.VITE_SITE_URL) {
     return import.meta.env.VITE_SITE_URL.replace(/\/$/, '')
   }
-  if (typeof window !== 'undefined' && window.location.origin) {
+  if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1')) {
     return window.location.origin.replace(/\/$/, '')
   }
-  return 'https://epic-vault.vercel.app'
+  return 'https://epic-vault-store.vercel.app'
 }
 
 export interface EmailRecipient {
