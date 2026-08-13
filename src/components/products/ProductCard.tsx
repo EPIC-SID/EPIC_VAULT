@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { ShoppingBag, Eye, AlertTriangle, CheckCircle, Flame } from 'lucide-react'
 import { useCart } from '@/context/CartContext'
 import type { Product } from '@/types'
@@ -8,11 +8,12 @@ interface ProductCardProps {
   onSelectProduct: (p: Product) => void
 }
 
-// Fallback high-res image if product image_url is broken or missing
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&q=80' // High quality yoga/lifestyle image
+// Fallback image if product image_url is broken or missing
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=600&q=75&fm=webp'
 
 export function ProductCard({ product, onSelectProduct }: ProductCardProps) {
   const { addToCart } = useCart()
+  const [imageLoaded, setImageLoaded] = useState(false)
 
   const isOutOfStock = product.stock <= 0
   const isLowStock   = product.stock > 0 && product.stock <= 3
@@ -20,21 +21,33 @@ export function ProductCard({ product, onSelectProduct }: ProductCardProps) {
   return (
     <article className="card-base card-hover overflow-hidden flex flex-col group relative">
 
-      {/* Image Area */}
+      {/* Image Area with Shimmer Skeleton Loader */}
       <div
         className="relative aspect-4/3 w-full overflow-hidden bg-slate-100 cursor-pointer"
         onClick={() => onSelectProduct(product)}
       >
+        {/* Shimmer skeleton before load */}
+        {!imageLoaded && (
+          <div className="absolute inset-0 bg-slate-200 animate-pulse flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-2 border-slate-300 border-t-slate-400 animate-spin" />
+          </div>
+        )}
+
         <img
           src={product.image_url || FALLBACK_IMAGE}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
+          decoding="async"
+          onLoad={() => setImageLoaded(true)}
+          className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ${
+            imageLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
           onError={(e) => {
             const target = e.currentTarget
             if (target.src !== FALLBACK_IMAGE) {
               target.src = FALLBACK_IMAGE
             }
+            setImageLoaded(true)
           }}
         />
 

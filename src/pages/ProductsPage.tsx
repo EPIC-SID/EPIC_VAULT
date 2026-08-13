@@ -5,7 +5,23 @@ import { ProductFilters } from '@/components/products/ProductFilters'
 import { ProductCard } from '@/components/products/ProductCard'
 import { ProductDetailModal } from '@/components/products/ProductDetailModal'
 import type { Product } from '@/types'
-import { ShoppingBag, AlertCircle, RefreshCw, Package, CheckCircle2, Layers } from 'lucide-react'
+import { ShoppingBag, AlertCircle, RefreshCw, Package, CheckCircle2, Layers, ChevronDown } from 'lucide-react'
+
+// Skeleton Loader Card component for slow network connections
+function ProductCardSkeleton() {
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs animate-pulse flex flex-col space-y-3 p-3">
+      <div className="aspect-4/3 w-full bg-slate-200 rounded-xl" />
+      <div className="h-4 bg-slate-200 rounded w-3/4" />
+      <div className="h-3 bg-slate-100 rounded w-full" />
+      <div className="h-3 bg-slate-100 rounded w-2/3" />
+      <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
+        <div className="h-5 bg-slate-200 rounded w-16" />
+        <div className="h-8 bg-slate-200 rounded-lg w-20" />
+      </div>
+    </div>
+  )
+}
 
 export function ProductsPage() {
   const { products, categories, loading, error, refetch } = useProducts()
@@ -17,6 +33,9 @@ export function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState(categoryParam || 'All')
   const [sortBy, setSortBy]                     = useState('name-asc')
   const [selectedProduct, setSelectedProduct]   = useState<Product | null>(null)
+  
+  // Progressive Chunking for Low Network Connectivity (Lazy Load 12 per batch)
+  const [visibleCount, setVisibleCount]         = useState(12)
 
   // Sync selected category when URL query parameter changes
   useEffect(() => {
@@ -26,10 +45,12 @@ export function ProductsPage() {
     } else {
       setSelectedCategory('All')
     }
+    setVisibleCount(12)
   }, [searchParams])
 
   const handleCategoryChange = (cat: string) => {
     setSelectedCategory(cat)
+    setVisibleCount(12)
     const newParams = new URLSearchParams(searchParams)
     if (cat === 'All') {
       newParams.delete('category')
@@ -43,6 +64,7 @@ export function ProductsPage() {
     setSearchQuery('')
     setSelectedCategory('All')
     setSortBy('name-asc')
+    setVisibleCount(12)
     setSearchParams({})
   }
 
@@ -72,6 +94,10 @@ export function ProductsPage() {
       })
   }, [products, searchQuery, selectedCategory, sortBy])
 
+  const visibleProducts = useMemo(() => {
+    return filteredProducts.slice(0, visibleCount)
+  }, [filteredProducts, visibleCount])
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
@@ -86,7 +112,7 @@ export function ProductsPage() {
             EPIC_VAULT Store
           </h1>
           <p className="text-sm text-slate-600 leading-relaxed">
-            Browse our full catalog of items. Inventory levels are tracked in real-time using Supabase PostgreSQL with atomic transaction checkouts.
+            Browse our catalog. Optimized with lazy image loading and progressive chunking for seamless low-network browsing.
           </p>
         </div>
 
@@ -127,7 +153,7 @@ export function ProductsPage() {
       {/* Product Filters & Search */}
       <ProductFilters
         searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
+        setSearchQuery={(q) => { setSearchQuery(q); setVisibleCount(12); }}
         selectedCategory={selectedCategory}
         setSelectedCategory={handleCategoryChange}
         categories={categories}
@@ -138,9 +164,11 @@ export function ProductsPage() {
 
       {/* Main Content Area */}
       {loading ? (
-        <div className="py-20 text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-semibold text-slate-500">Loading catalog from database...</p>
+        /* Skeleton Grid for Low Network Connectivity */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, idx) => (
+            <ProductCardSkeleton key={idx} />
+          ))}
         </div>
       ) : error ? (
         <div className="bg-red-50 border border-red-200 p-6 rounded-xl text-center space-y-3">
@@ -171,16 +199,16 @@ export function ProductsPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
-            <span>Showing <strong className="text-slate-900">{filteredProducts.length}</strong> products</span>
+            <span>Showing <strong className="text-slate-900">{visibleProducts.length}</strong> of <strong className="text-slate-900">{filteredProducts.length}</strong> products</span>
             {selectedCategory !== 'All' && (
               <span className="chip chip-blue">Category: {selectedCategory}</span>
             )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((product) => (
+            {visibleProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -188,6 +216,19 @@ export function ProductsPage() {
               />
             ))}
           </div>
+
+          {/* Progressive Load More Button */}
+          {visibleCount < filteredProducts.length && (
+            <div className="text-center pt-4">
+              <button
+                onClick={() => setVisibleCount((prev) => prev + 12)}
+                className="px-6 py-3 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs shadow-xs inline-flex items-center gap-2 transition-all hover:border-blue-300 hover:text-blue-600"
+              >
+                <ChevronDown className="w-4 h-4" />
+                Load More Products ({filteredProducts.length - visibleCount} remaining)
+              </button>
+            </div>
+          )}
         </div>
       )}
 
