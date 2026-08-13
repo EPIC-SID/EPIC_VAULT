@@ -222,7 +222,8 @@ EPIC_VAULT/
 ├── sql/
 │   ├── schema.sql                   # PostgreSQL tables, RLS, triggers & place_order_atomic RPC
 │   ├── bonus_features_setup.sql     # Wishlist, Reviews, Coupons tables, RLS & RPC functions
-│   ├── seed_products.sql            # 40+ product catalog seed data
+│   ├── seed_products.sql            # 50+ product catalog seed data
+│   ├── add_laptops_gpus_consoles.sql # Laptops, RTX GPUs & PlayStation consoles seed
 │   ├── update_lower_prices.sql      # SQL to update existing product prices
 │   └── cleanup_duplicate_products.sql # SQL to deduplicate products table
 │
