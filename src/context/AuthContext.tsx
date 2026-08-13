@@ -146,6 +146,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
   }
 
+  const updateProfile = async (updates: {
+    name?: string
+    avatar_url?: string | null
+    phone?: string | null
+    bio?: string | null
+  }) => {
+    if (!user) throw new Error('Not authenticated')
+
+    const updatePayload: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    }
+    if (updates.name !== undefined) updatePayload.name = updates.name.trim()
+    if (updates.avatar_url !== undefined) updatePayload.avatar_url = updates.avatar_url
+    if (updates.phone !== undefined) updatePayload.phone = updates.phone
+    if (updates.bio !== undefined) updatePayload.bio = updates.bio
+
+    // Update public.profiles
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updatePayload)
+      .eq('id', user.id)
+      .select('*')
+      .single()
+
+    if (error) throw error
+
+    // Sync Auth metadata if name updated
+    if (updates.name) {
+      await supabase.auth.updateUser({ data: { name: updates.name.trim() } })
+    }
+
+    if (data) {
+      setProfile(data as Profile)
+    }
+  }
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
@@ -157,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, isAdmin, signUp, signIn, sendOtp, verifyOtp, signOut }}
+      value={{ user, profile, loading, isAdmin, signUp, signIn, sendOtp, verifyOtp, updateProfile, signOut }}
     >
       {children}
     </AuthContext.Provider>

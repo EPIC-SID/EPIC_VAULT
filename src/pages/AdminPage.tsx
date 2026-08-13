@@ -18,6 +18,7 @@ import {
   Mail,
   ShieldAlert,
 } from 'lucide-react'
+import { validateEmail, formatUserFriendlyError } from '@/lib/validation'
 
 export function AdminPage() {
   const { showSuccess, showError } = useToast()
@@ -77,7 +78,7 @@ export function AdminPage() {
 
     } catch (err) {
       console.error('[AdminPage] Unexpected error:', err)
-      showError(err instanceof Error ? err.message : 'Unexpected error loading admin data.')
+      showError(formatUserFriendlyError(err))
     } finally {
       setLoading(false)
     }
@@ -163,7 +164,7 @@ export function AdminPage() {
       fetchData()
     } catch (err) {
       console.error('[AdminPage] Save error:', err)
-      showError(err instanceof Error ? err.message : 'Failed to save product.')
+      showError(formatUserFriendlyError(err))
     } finally {
       setSubmitting(false)
     }
@@ -220,7 +221,7 @@ export function AdminPage() {
       fetchData()
     } catch (err) {
       console.error('[AdminPage] Order update error:', err)
-      showError(err instanceof Error ? err.message : 'Failed to update order status.')
+      showError(formatUserFriendlyError(err))
     }
   }
 
@@ -236,14 +237,15 @@ export function AdminPage() {
       showSuccess(`Updated ${targetProfile.name || targetProfile.email}'s role to ${newRole}.`)
       fetchData()
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to update user role.')
+      showError(formatUserFriendlyError(err))
     }
   }
 
   const handleInviteAdmin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!inviteEmail.trim()) {
-      showError('Please enter an email address to invite.')
+    const emailCheck = validateEmail(inviteEmail)
+    if (!emailCheck.isValid) {
+      showError(emailCheck.error!)
       return
     }
 

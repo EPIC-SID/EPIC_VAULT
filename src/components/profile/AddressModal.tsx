@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import type { Address } from '@/types'
 
+import { validateMobile, formatUserFriendlyError } from '@/lib/validation'
+
 interface AddressModalProps {
   isOpen: boolean
   onClose: () => void
@@ -29,12 +31,23 @@ export function AddressModal({ isOpen, onClose, onAddressSaved }: AddressModalPr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) {
-      showError('You must be logged in to save an address.')
+      showError('Please sign in to save your shipping address.')
       return
     }
 
-    if (!fullName.trim() || !phone.trim() || !streetAddress.trim() || !city.trim() || !stateName.trim() || !pincode.trim()) {
-      showError('Please fill out all address fields.')
+    if (!fullName.trim()) {
+      showError('Please enter the recipient full name.')
+      return
+    }
+
+    const mobileCheck = validateMobile(phone)
+    if (!mobileCheck.isValid) {
+      showError(mobileCheck.error!)
+      return
+    }
+
+    if (!streetAddress.trim() || !city.trim() || !stateName.trim() || !pincode.trim()) {
+      showError('Please fill out all address fields (street, city, state, pincode).')
       return
     }
 
@@ -52,7 +65,7 @@ export function AddressModal({ isOpen, onClose, onAddressSaved }: AddressModalPr
       const newAddr = {
         user_id: user.id,
         full_name: fullName.trim(),
-        phone: phone.trim(),
+        phone: mobileCheck.cleaned,
         street_address: streetAddress.trim(),
         city: city.trim(),
         state: stateName.trim(),
@@ -68,7 +81,7 @@ export function AddressModal({ isOpen, onClose, onAddressSaved }: AddressModalPr
 
       if (error) throw error
 
-      showSuccess('Shipping address saved!')
+      showSuccess('Shipping address saved successfully!')
       onAddressSaved(data as Address)
       onClose()
 
@@ -81,7 +94,7 @@ export function AddressModal({ isOpen, onClose, onAddressSaved }: AddressModalPr
       setPincode('')
       setIsDefault(false)
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to save address.')
+      showError(formatUserFriendlyError(err))
     } finally {
       setSaving(false)
     }

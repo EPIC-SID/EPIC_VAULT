@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext'
 import { supabase } from '@/lib/supabase'
 import type { Address, PlaceOrderResult } from '@/types'
 import { AddressModal } from '@/components/profile/AddressModal'
+import { validateMobile, formatUserFriendlyError } from '@/lib/validation'
 
 interface CheckoutModalProps {
   isOpen: boolean
@@ -23,6 +24,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const [selectedAddrId, setSelectedAddrId] = useState<string>('')
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false)
   const [submitting, setSubmitting]       = useState(false)
+  const [useInline, setUseInline]         = useState(false)
 
   // Inline address fallback state if no saved address is chosen
   const [inlineAddress, setInlineAddress] = useState({
@@ -45,6 +47,9 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       if (data && data.length > 0) {
         setAddresses(data as Address[])
         setSelectedAddrId(data[0].id)
+        setUseInline(false)
+      } else {
+        setUseInline(true)
       }
     })()
   }, [isOpen, user])
@@ -70,26 +75,33 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     let shippingAddressObj: any = null
     const chosenSaved = addresses.find((a) => a.id === selectedAddrId)
 
-    if (chosenSaved) {
+    if (!useInline && chosenSaved) {
       shippingAddressObj = chosenSaved
-    } else if (
-      inlineAddress.full_name.trim() &&
-      inlineAddress.phone.trim() &&
-      inlineAddress.street_address.trim() &&
-      inlineAddress.city.trim() &&
-      inlineAddress.pincode.trim()
-    ) {
+    } else {
+      if (!inlineAddress.full_name.trim()) {
+        showError('Please enter recipient full name.')
+        return
+      }
+
+      const mobileCheck = validateMobile(inlineAddress.phone)
+      if (!mobileCheck.isValid) {
+        showError(mobileCheck.error!)
+        return
+      }
+
+      if (!inlineAddress.street_address.trim() || !inlineAddress.city.trim() || !inlineAddress.pincode.trim()) {
+        showError('Please fill out all shipping address fields (street, city, pincode).')
+        return
+      }
+
       shippingAddressObj = {
         full_name: inlineAddress.full_name.trim(),
-        phone: inlineAddress.phone.trim(),
+        phone: mobileCheck.cleaned,
         street_address: inlineAddress.street_address.trim(),
         city: inlineAddress.city.trim(),
         state: inlineAddress.state.trim(),
         pincode: inlineAddress.pincode.trim(),
       }
-    } else {
-      showError('Please select or provide a valid shipping address.')
-      return
     }
 
     try {
@@ -137,11 +149,11 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           navigate('/profile')
         }
       } else {
-        throw new Error('Order processing failed. Please try again.')
+        showError(formatUserFriendlyError(result?.error || 'Order processing failed. Please try again.'))
       }
     } catch (err) {
       console.error('[Checkout]', err)
-      showError(err instanceof Error ? err.message : 'Checkout failed.')
+      showError(formatUserFriendlyError(err))
     } finally {
       setSubmitting(false)
     }

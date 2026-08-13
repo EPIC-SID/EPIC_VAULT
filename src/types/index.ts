@@ -6,6 +6,8 @@ export interface Profile {
   email: string
   role: 'customer' | 'admin'
   avatar_url: string | null
+  phone?: string | null
+  bio?: string | null
   created_at: string
   updated_at: string
 }
@@ -80,6 +82,7 @@ export interface AuthContextType {
   signIn: (args: { email: string; password: string }) => Promise<void>
   sendOtp: (email: string) => Promise<void>
   verifyOtp: (email: string, token: string) => Promise<void>
+  updateProfile: (updates: { name?: string; avatar_url?: string | null; phone?: string | null; bio?: string | null }) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -128,5 +131,5 @@ export interface ProductFormData {
 export interface PlaceOrderResult {
   success: boolean
   order_id: string
-  message?: string
+  error?: string
 }

@@ -4,6 +4,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { UserPlus, User, Mail, Lock, ArrowRight, Eye, EyeOff, ShieldCheck, CheckCircle2 } from 'lucide-react'
 
+import { validateEmail, formatUserFriendlyError } from '@/lib/validation'
+
 export function SignupPage() {
   const [name, setName]                       = useState('')
   const [email, setEmail]                     = useState('')
@@ -48,23 +50,28 @@ export function SignupPage() {
       showError('Please enter your full name.')
       return
     }
+
+    const emailCheck = validateEmail(email)
+    if (!emailCheck.isValid) {
+      showError(emailCheck.error!)
+      return
+    }
+
     if (password.length < 6) {
-      showError('Password must be at least 6 characters.')
+      showError('Please choose a password with at least 6 characters.')
       return
     }
     if (password !== confirmPassword) {
-      showError('Passwords do not match.')
+      showError('Passwords do not match. Please re-enter your password to confirm.')
       return
     }
     try {
       setSubmitting(true)
       await signUp({ name: name.trim(), email: email.trim(), password })
-      showSuccess('Account created! Welcome to EPIC_VAULT.')
+      showSuccess('Account created successfully! Welcome to EPIC_VAULT.')
       navigate('/')
     } catch (err) {
-      showError(
-        err instanceof Error ? err.message : 'Registration failed. Email may already be in use.'
-      )
+      showError(formatUserFriendlyError(err))
     } finally {
       setSubmitting(false)
     }

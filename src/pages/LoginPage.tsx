@@ -4,6 +4,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { LogIn, Mail, Lock, Store, ArrowRight, KeyRound, ShieldCheck, Hash, Eye, EyeOff } from 'lucide-react'
 
+import { validateEmail, formatUserFriendlyError } from '@/lib/validation'
+
 export function LoginPage() {
   const [authMode, setAuthMode]       = useState<'password' | 'otp'>('password')
   const [email, setEmail]             = useState('')
@@ -21,8 +23,13 @@ export function LoginPage() {
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim() || !password) {
-      showError('Please enter both email and password.')
+    const emailCheck = validateEmail(email)
+    if (!emailCheck.isValid) {
+      showError(emailCheck.error!)
+      return
+    }
+    if (!password) {
+      showError('Please enter your password.')
       return
     }
 
@@ -32,7 +39,7 @@ export function LoginPage() {
       showSuccess('Successfully logged in!')
       navigate(from, { replace: true })
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Invalid credentials. Please try again.')
+      showError(formatUserFriendlyError(err))
     } finally {
       setSubmitting(false)
     }
@@ -40,8 +47,9 @@ export function LoginPage() {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim()) {
-      showError('Please enter your email address.')
+    const emailCheck = validateEmail(email)
+    if (!emailCheck.isValid) {
+      showError(emailCheck.error!)
       return
     }
 
@@ -51,7 +59,7 @@ export function LoginPage() {
       setOtpStep('verify')
       showSuccess('OTP Code sent! Please check your email inbox.')
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to send OTP code.')
+      showError(formatUserFriendlyError(err))
     } finally {
       setSubmitting(false)
     }
@@ -60,7 +68,11 @@ export function LoginPage() {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!otpToken.trim()) {
-      showError('Please enter the OTP passcode sent to your email.')
+      showError('Please enter the 6-digit OTP code sent to your email.')
+      return
+    }
+    if (otpToken.trim().length !== 6) {
+      showError('Please enter a valid 6-digit OTP code.')
       return
     }
 
@@ -70,7 +82,7 @@ export function LoginPage() {
       showSuccess('OTP Verified! Welcome back.')
       navigate(from, { replace: true })
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Invalid or expired OTP code.')
+      showError(formatUserFriendlyError(err))
     } finally {
       setSubmitting(false)
     }

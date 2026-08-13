@@ -167,7 +167,15 @@ export function Navbar({ onOpenCart }: NavbarProps) {
                 to="/profile"
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold transition-colors max-w-[160px]"
               >
-                <User className="w-4 h-4 text-blue-600 shrink-0" />
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt="Avatar"
+                    className="w-4 h-4 rounded-full object-cover shrink-0 border border-blue-400"
+                  />
+                ) : (
+                  <User className="w-4 h-4 text-blue-600 shrink-0" />
+                )}
                 <span className="truncate">{profile?.name ?? user.email}</span>
               </Link>
               <button
