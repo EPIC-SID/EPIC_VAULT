@@ -71,7 +71,19 @@ ON CONFLICT (code) DO NOTHING;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT;
 
+-- ─── COUPON USAGE INCREMENT FUNCTION (used by checkout) ──────────────────────
+CREATE OR REPLACE FUNCTION public.increment_coupon_usage(p_code TEXT)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  UPDATE public.coupons
+  SET used_count = used_count + 1
+  WHERE code = p_code;
+END;
+$$;
+
 -- ─── VERIFY: Show all tables ─────────────────────────────────────────────────
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'public'
 ORDER BY table_name;
+

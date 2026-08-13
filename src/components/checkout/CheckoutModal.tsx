@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, ShoppingBag, Lock, CheckCircle, MapPin, Plus } from 'lucide-react'
+import { X, ShoppingBag, Lock, CheckCircle, MapPin, Plus, Tag, Loader2 } from 'lucide-react'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -25,6 +25,14 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false)
   const [submitting, setSubmitting]       = useState(false)
   const [useInline, setUseInline]         = useState(false)
+
+  // Coupon state
+  const [couponCode, setCouponCode]         = useState('')
+  const [couponInput, setCouponInput]       = useState('')
+  const [discountPercent, setDiscountPercent] = useState(0)
+  const [couponLoading, setCouponLoading]   = useState(false)
+  const [couponError, setCouponError]       = useState('')
+  const [couponSuccess, setCouponSuccess]   = useState('')
 
   // Inline address fallback state if no saved address is chosen
   const [inlineAddress, setInlineAddress] = useState({
@@ -56,8 +64,59 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   if (!isOpen) return null
 
+  // Computed amounts
+  const discountAmount = discountPercent > 0 ? (totalAmount * discountPercent) / 100 : 0
+  const finalAmount = totalAmount - discountAmount
+
   const fmt = (n: number) =>
     '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase()
+    if (!code) { setCouponError('Please enter a coupon code.'); return }
+    setCouponError('')
+    setCouponSuccess('')
+    setCouponLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('code, discount_percent, max_uses, used_count, expires_at, is_active')
+        .eq('code', code)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (error) throw error
+
+      if (!data) {
+        setCouponError('Invalid coupon code. Please check and try again.')
+        return
+      }
+      if (data.max_uses !== null && data.used_count >= data.max_uses) {
+        setCouponError('This coupon has reached its usage limit.')
+        return
+      }
+      if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        setCouponError('This coupon has expired.')
+        return
+      }
+
+      setCouponCode(data.code)
+      setDiscountPercent(data.discount_percent)
+      setCouponSuccess(`🎉 Coupon applied! You save ${data.discount_percent}% off your order.`)
+    } catch (err) {
+      setCouponError('Could not validate coupon. Please try again.')
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('')
+    setCouponInput('')
+    setDiscountPercent(0)
+    setCouponError('')
+    setCouponSuccess('')
+  }
 
   const handlePlaceOrder = async () => {
     if (!user) {
@@ -118,7 +177,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       const { data, error } = await supabase.rpc('place_order_atomic', {
         p_user_id:          user.id,
         p_items:            preparedItems,
-        p_total_amount:     Number(totalAmount.toFixed(2)),
+        p_total_amount:     Number(finalAmount.toFixed(2)),
         p_shipping_address: shippingAddressObj,
       })
 
@@ -135,10 +194,15 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               user.email!,
               shippingAddressObj?.full_name || user.user_metadata?.name || 'Valued Customer',
               result.order_id,
-              Number(totalAmount.toFixed(2)),
+              Number(finalAmount.toFixed(2)),
               preparedItems.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price }))
             ).catch((err) => console.error('[Checkout] Email trigger error:', err))
           })
+        }
+
+        // Increment coupon usage count
+        if (couponCode) {
+          await supabase.rpc('increment_coupon_usage', { p_code: couponCode }).catch(() => {})
         }
 
         clearCart()
@@ -322,19 +386,73 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               </div>
             </div>
 
+            {/* Coupon Code Section */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                <Tag className="w-3.5 h-3.5 text-violet-600" /> Coupon Code
+              </label>
+
+              {couponCode ? (
+                <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-violet-50 border border-violet-200">
+                  <div>
+                    <span className="text-xs font-black text-violet-700 tracking-wider">{couponCode}</span>
+                    <p className="text-[11px] text-violet-500 mt-0.5">{discountPercent}% off applied ✓</p>
+                  </div>
+                  <button
+                    onClick={handleRemoveCoupon}
+                    className="text-[11px] font-bold text-rose-500 hover:text-rose-700 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter coupon code (e.g. PCCOE30)"
+                      value={couponInput}
+                      onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError('') }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                      className={`${inputClass} flex-1 font-mono tracking-widest uppercase`}
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading}
+                      className="px-3.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+                    >
+                      {couponLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Apply'}
+                    </button>
+                  </div>
+                  {couponError && (
+                    <p className="text-[11px] text-rose-600 font-medium">{couponError}</p>
+                  )}
+                  {couponSuccess && (
+                    <p className="text-[11px] text-emerald-600 font-medium">{couponSuccess}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Totals */}
             <div className="p-3.5 space-y-1.5 border border-slate-200 rounded-xl bg-slate-50/50">
               <div className="flex justify-between text-xs text-slate-500">
                 <span>Subtotal</span>
                 <span className="font-semibold text-slate-800">{fmt(totalAmount)}</span>
               </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-xs text-violet-600">
+                  <span className="font-semibold">Discount ({couponCode} — {discountPercent}%)</span>
+                  <span className="font-bold">− {fmt(discountAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-xs text-slate-500">
                 <span>Shipping Fee</span>
                 <span className="text-emerald-600 font-semibold">FREE</span>
               </div>
               <div className="flex justify-between items-center pt-1.5 border-t border-slate-200">
                 <span className="font-extrabold text-slate-900 text-sm">Total Payable</span>
-                <span className="font-black text-blue-700 text-lg">{fmt(totalAmount)}</span>
+                <span className="font-black text-blue-700 text-lg">{fmt(finalAmount)}</span>
               </div>
             </div>
 

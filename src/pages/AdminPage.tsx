@@ -17,13 +17,15 @@ import {
   UserCheck,
   Mail,
   ShieldAlert,
+  BarChart3,
 } from 'lucide-react'
 import { validateEmail, formatUserFriendlyError } from '@/lib/validation'
+import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard'
 
 export function AdminPage() {
   const { showSuccess, showError } = useToast()
 
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'users'>('products')
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'users' | 'analytics'>('products')
   const [products, setProducts]   = useState<Product[]>([])
   const [orders, setOrders]       = useState<Order[]>([])
   const [profiles, setProfiles]   = useState<Profile[]>([])
@@ -352,6 +354,16 @@ export function AdminPage() {
           >
             <Users className="w-4 h-4" /> Admins &amp; Users ({profiles.length})
           </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`pb-2.5 text-sm font-bold border-b-2 flex items-center gap-2 transition-colors ${
+              activeTab === 'analytics'
+                ? 'text-emerald-600 border-emerald-600'
+                : 'text-slate-500 border-transparent hover:text-slate-800'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" /> Analytics
+          </button>
         </div>
 
         {/* Content */}
@@ -359,6 +371,8 @@ export function AdminPage() {
           <div className="py-12 text-center text-xs text-slate-500">
             Loading admin data...
           </div>
+        ) : activeTab === 'analytics' ? (
+          <AnalyticsDashboard />
         ) : activeTab === 'products' ? (
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
             <div className="overflow-x-auto">

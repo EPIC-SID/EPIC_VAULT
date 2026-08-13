@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { X, ShoppingBag, CheckCircle, AlertTriangle, Flame, Shield, Truck } from 'lucide-react'
+import { X, ShoppingBag, CheckCircle, AlertTriangle, Flame, Shield, Truck, Star, MessageSquare } from 'lucide-react'
 import type { Product } from '@/types'
 import { useCart } from '@/context/CartContext'
+import { ReviewSection } from './ReviewSection'
+import { supabase } from '@/lib/supabase'
 
 interface ProductDetailModalProps {
   product: Product | null
@@ -13,8 +15,30 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0
 export function ProductDetailModal({ product, onClose }: ProductDetailModalProps) {
   const { addToCart, items } = useCart()
   const [quantity, setQuantity] = useState(1)
+  const [activeTab, setActiveTab] = useState<'details' | 'reviews'>('details')
+  const [avgRating, setAvgRating] = useState(0)
+  const [reviewCount, setReviewCount] = useState(0)
 
-  useEffect(() => { setQuantity(1) }, [product])
+  useEffect(() => { setQuantity(1); setActiveTab('details') }, [product])
+
+  // Fetch average rating for this product
+  useEffect(() => {
+    if (!product) return
+    supabase
+      .from('reviews')
+      .select('rating')
+      .eq('product_id', product.id)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const avg = data.reduce((s, r) => s + r.rating, 0) / data.length
+          setAvgRating(avg)
+          setReviewCount(data.length)
+        } else {
+          setAvgRating(0)
+          setReviewCount(0)
+        }
+      })
+  }, [product])
 
   if (!product) return null
 
@@ -96,24 +120,74 @@ export function ProductDetailModal({ product, onClose }: ProductDetailModalProps
             <div>
               <h2 className="font-bold text-xl text-slate-900 leading-snug">{product.name}</h2>
               <p className="text-2xl font-extrabold text-blue-700 mt-1">{fmt(Number(product.price))}</p>
+              {/* Average Star Rating */}
+              {reviewCount > 0 && (
+                <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex items-center gap-0.5">
+                    {[1,2,3,4,5].map(s => (
+                      <Star key={s} className={`w-3.5 h-3.5 ${Math.round(avgRating) >= s ? 'text-amber-400 fill-amber-400' : 'text-slate-200'}`} />
+                    ))}
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-medium">{avgRating.toFixed(1)} ({reviewCount})</span>
+                  <button
+                    onClick={() => setActiveTab('reviews')}
+                    className="text-[11px] text-blue-600 font-semibold hover:underline"
+                  >
+                    See reviews
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Description */}
-            <p className="text-xs text-slate-600 leading-relaxed border-y border-slate-100 py-3">
-              {product.description || 'No detailed description available for this product.'}
-            </p>
-
-            {/* Trust badges */}
-            <div className="flex flex-col gap-1.5 text-xs text-slate-500">
-              <div className="flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                Verified Authentic Product
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Truck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                Fast Delivery Across India
-              </div>
+            {/* Tab Switcher */}
+            <div className="flex border-b border-slate-100 -mx-6 px-6 gap-4 text-xs font-bold">
+              <button
+                onClick={() => setActiveTab('details')}
+                className={`pb-2 border-b-2 transition-colors ${
+                  activeTab === 'details'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <Shield className="w-3.5 h-3.5 inline mr-1" />Details
+              </button>
+              <button
+                onClick={() => setActiveTab('reviews')}
+                className={`pb-2 border-b-2 transition-colors flex items-center gap-1 ${
+                  activeTab === 'reviews'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> Reviews
+                {reviewCount > 0 && (
+                  <span className="px-1.5 py-0.5 text-[9px] bg-amber-100 text-amber-700 rounded-full">{reviewCount}</span>
+                )}
+              </button>
             </div>
+
+            {activeTab === 'details' ? (
+              <>
+                {/* Description */}
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {product.description || 'No detailed description available for this product.'}
+                </p>
+
+                {/* Trust badges */}
+                <div className="flex flex-col gap-1.5 text-xs text-slate-500">
+                  <div className="flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    Verified Authentic Product
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    Fast Delivery Across India
+                  </div>
+                </div>
+              </>
+            ) : (
+              <ReviewSection productId={product.id} />
+            )}
 
             {/* Quantity + CTA */}
             <div className="mt-auto space-y-3 pt-2 border-t border-slate-100">
