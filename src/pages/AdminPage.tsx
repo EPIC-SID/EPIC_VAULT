@@ -191,6 +191,8 @@ export function AdminPage() {
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
+      const targetOrder = orders.find((o) => o.id === orderId)
+
       const { error } = await supabase
         .from('orders')
         .update({ order_status: newStatus })
@@ -198,6 +200,23 @@ export function AdminPage() {
 
       if (error) throw error
       showSuccess(`Order status updated to ${newStatus}.`)
+
+      // Trigger Brevo Order Status Email
+      if (targetOrder?.user_id) {
+        supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', targetOrder.user_id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data?.email) {
+              import('@/lib/brevo').then((brevo) => {
+                brevo.sendOrderStatusUpdateEmail(data.email, orderId, newStatus).catch(console.error)
+              })
+            }
+          })
+      }
+
       fetchData()
     } catch (err) {
       console.error('[AdminPage] Order update error:', err)

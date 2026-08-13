@@ -115,6 +115,20 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       const result = data as PlaceOrderResult
       if (result?.success) {
         showSuccess('Order placed successfully! Check your order history for details.')
+
+        // Trigger Brevo Order Confirmation Email
+        if (user.email) {
+          import('@/lib/brevo').then((brevo) => {
+            brevo.sendOrderConfirmationEmail(
+              user.email!,
+              shippingAddressObj?.full_name || user.user_metadata?.name || 'Valued Customer',
+              result.order_id,
+              Number(totalAmount.toFixed(2)),
+              preparedItems.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price }))
+            ).catch((err) => console.error('[Checkout] Email trigger error:', err))
+          })
+        }
+
         clearCart()
         onClose()
         if (result.order_id) {

@@ -2,12 +2,13 @@ import React, { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
-import { LogIn, Mail, Lock, Store, ArrowRight, KeyRound, ShieldCheck, Hash } from 'lucide-react'
+import { LogIn, Mail, Lock, Store, ArrowRight, KeyRound, ShieldCheck, Hash, Eye, EyeOff } from 'lucide-react'
 
 export function LoginPage() {
   const [authMode, setAuthMode]       = useState<'password' | 'otp'>('password')
   const [email, setEmail]             = useState('')
   const [password, setPassword]       = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [otpToken, setOtpToken]       = useState('')
   const [otpStep, setOtpStep]         = useState<'request' | 'verify'>('request')
   const [submitting, setSubmitting]   = useState(false)
@@ -144,13 +145,21 @@ export function LoginPage() {
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className={inputClass}
+                  className={`${inputClass} pr-10`}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                  title={showPassword ? 'Hide Password' : 'Show Password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
